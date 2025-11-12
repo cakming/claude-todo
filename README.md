@@ -4,6 +4,8 @@ A powerful todo management system designed for tracking coding tasks across diff
 
 **✨ Now with Custom MCP Server!** Interact with your todos directly through Claude Desktop/Code using natural language.
 
+**🔐 Optional Authentication!** Secure your todos with JWT-based authentication - enable/disable via environment variable.
+
 ## ✨ Features
 
 - **Project Management**: Create and manage multiple projects with separate collections
@@ -19,6 +21,7 @@ A powerful todo management system designed for tracking coding tasks across diff
 - **Real-time Updates**: Toast notifications for all actions
 - **Responsive Design**: Works on desktop, tablet, and mobile
 - **MCP Server**: Custom Model Context Protocol server for Claude integration (30+ tools)
+- **Optional Authentication**: JWT-based authentication with bcrypt password hashing (configurable)
 
 ## 🏗️ Architecture
 
@@ -106,6 +109,40 @@ Frontend will run on `http://localhost:5173` (or another port if 5173 is busy)
 
 Navigate to `http://localhost:5173`
 
+## 🔐 Authentication (Optional)
+
+Authentication is **disabled by default**. To enable it:
+
+### Enable Authentication
+
+Edit `backend/.env`:
+
+```env
+# Enable authentication
+AUTH_ENABLED=true
+
+# Set a strong JWT secret (required when auth is enabled)
+JWT_SECRET=your-super-secret-key-change-this-in-production
+
+# Token expiration (optional, default: 7d)
+JWT_EXPIRES_IN=7d
+```
+
+Restart the backend server. The frontend will automatically detect auth is enabled and show a login screen.
+
+### First User Registration
+
+1. Visit `http://localhost:5173`
+2. Click "Register here"
+3. Create your account
+4. You'll be automatically logged in
+
+**For complete authentication documentation, see [AUTH_GUIDE.md](./AUTH_GUIDE.md)**
+
+### Disable Authentication
+
+Remove or set `AUTH_ENABLED=false` in `backend/.env` and restart the backend.
+
 ## 📁 Project Structure
 
 ```
@@ -146,6 +183,7 @@ claude-todo/
 │   └── .env
 │
 ├── API_DOCUMENTATION.md        # Complete API documentation
+├── AUTH_GUIDE.md              # Authentication system guide
 ├── MCP_SETUP.md               # MongoDB MCP setup guide (legacy)
 └── README.md                  # This file
 
