@@ -2,6 +2,8 @@
 
 A powerful todo management system designed for tracking coding tasks across different projects with hierarchical organization (Epics > Features > Tasks). Built with MongoDB, Express, React, and Tailwind CSS.
 
+**✨ Now with Custom MCP Server!** Interact with your todos directly through Claude Desktop/Code using natural language.
+
 ## ✨ Features
 
 - **Project Management**: Create and manage multiple projects with separate collections
@@ -16,6 +18,7 @@ A powerful todo management system designed for tracking coding tasks across diff
 - **Status Management**: Planning, In Progress, Done, and Blocked states
 - **Real-time Updates**: Toast notifications for all actions
 - **Responsive Design**: Works on desktop, tablet, and mobile
+- **MCP Server**: Custom Model Context Protocol server for Claude integration (30+ tools)
 
 ## 🏗️ Architecture
 
@@ -107,6 +110,13 @@ Navigate to `http://localhost:5173`
 
 ```
 claude-todo/
+├── vibe-todo-mcp/             # Custom MCP server for Claude
+│   ├── src/
+│   │   ├── index.ts          # MCP server entry point
+│   │   ├── tools/            # 30+ MCP tools
+│   │   └── utils/            # Validation & auto-status
+│   └── README.md
+│
 ├── backend/                    # Express API server
 │   ├── src/
 │   │   ├── config/            # MongoDB configuration
@@ -136,8 +146,10 @@ claude-todo/
 │   └── .env
 │
 ├── API_DOCUMENTATION.md        # Complete API documentation
-├── MCP_SETUP.md               # MongoDB MCP setup guide
+├── MCP_SETUP.md               # MongoDB MCP setup guide (legacy)
 └── README.md                  # This file
+
+Note: Use the custom MCP server in vibe-todo-mcp/ for best Claude integration!
 ```
 
 ## 🎮 Usage Guide
@@ -248,9 +260,58 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for complete API reference in
 - Example API calls
 - Error handling
 
-## 🔗 MongoDB MCP Setup
+## 🔗 MCP Server Setup (Claude Integration)
 
-See [MCP_SETUP.md](./MCP_SETUP.md) for detailed MongoDB MCP configuration for Claude Code integration.
+We provide a **custom MCP server** specifically designed for Vibe Todo Manager!
+
+### Quick Setup
+
+1. **Build the MCP server**:
+```bash
+cd vibe-todo-mcp
+npm install
+npm run build
+```
+
+2. **Configure Claude Desktop** (`~/.config/claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "vibe-todo": {
+      "command": "node",
+      "args": ["/absolute/path/to/claude-todo/vibe-todo-mcp/build/index.js"],
+      "env": {
+        "MONGODB_URI": "mongodb://localhost:27017",
+        "DB_NAME": "vibe_todo_manager"
+      }
+    }
+  }
+}
+```
+
+3. **Restart Claude Desktop**
+
+### Usage Examples
+
+Now you can interact naturally with Claude:
+
+```
+"Create an epic called User Authentication in my_app"
+"Add a feature for Login Form under that epic"
+"Create a task to implement JWT validation"
+"Mark that task as done" (auto-updates parent feature/epic!)
+"Show me all blocked items"
+"What was recently updated?"
+```
+
+**See [vibe-todo-mcp/README.md](./vibe-todo-mcp/README.md) for complete documentation.**
+
+The MCP server provides 30+ tools including:
+- Project management
+- Epic/Feature/Task CRUD operations
+- Auto-status updates (when children complete, parents update!)
+- Tree view with progress
+- Search and filtering
 
 ## 🎨 Customization
 

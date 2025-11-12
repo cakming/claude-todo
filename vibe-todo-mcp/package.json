@@ -1,0 +1,27 @@
+{
+  "name": "vibe-todo-mcp",
+  "version": "1.0.0",
+  "description": "Custom MCP server for Vibe Coding Todo Manager",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "vibe-todo-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": ["mcp", "mongodb", "todo", "vibe-coding"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
