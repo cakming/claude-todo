@@ -4,8 +4,10 @@ import dotenv from 'dotenv';
 import { connectDB, closeDB } from './config/mongodb.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
+import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
 
 // Import routes
+import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import epicRoutes from './routes/epics.js';
 import featureRoutes from './routes/features.js';
@@ -36,18 +38,22 @@ app.get('/health', (req, res) => {
   res.json({
     success: true,
     message: 'Vibe Todo API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    authEnabled: isAuthEnabled()
   });
 });
 
-// API Routes
-app.use('/api/projects', projectRoutes);
+// Authentication routes (always available)
+app.use('/api/auth', authRoutes);
 
-// Project-scoped routes (require project validation)
-app.use('/api/:project/epics', validateProject, epicRoutes);
-app.use('/api/:project/features', validateProject, featureRoutes);
-app.use('/api/:project/tasks', validateProject, taskRoutes);
-app.use('/api/:project/tree', validateProject, treeRoutes);
+// API Routes (protected if AUTH_ENABLED=true)
+app.use('/api/projects', authenticate, projectRoutes);
+
+// Project-scoped routes (require project validation + auth if enabled)
+app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
+app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
+app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
+app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -64,6 +70,10 @@ async function startServer() {
       console.log(`🚀 Vibe Todo API server running on port ${PORT}`);
       console.log(`📍 API endpoint: http://localhost:${PORT}`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔐 Authentication: ${isAuthEnabled() ? 'ENABLED' : 'DISABLED'}`);
+      if (isAuthEnabled()) {
+        console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/login, /api/auth/register`);
+      }
     });
   } catch (error) {
     console.error('Failed to start server:', error);
