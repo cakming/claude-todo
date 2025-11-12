@@ -1,6 +1,14 @@
 # Vibe Todo MCP Server
 
-Custom Model Context Protocol (MCP) server for the Vibe Coding Todo Manager. This enables Claude Desktop and Claude Code to directly interact with your MongoDB-based todo management system.
+Custom Model Context Protocol (MCP) server for the Vibe Coding Todo Manager. This enables Claude Desktop and Claude Code to directly interact with your MongoDB-based todo management system using natural language.
+
+## 📚 Complete Documentation
+
+- **[Setup Guide](./SETUP_GUIDE.md)** - Complete installation and configuration
+- **[Tools Reference](./TOOLS_REFERENCE.md)** - All 30+ MCP tools with examples
+- **[Usage Examples](./USAGE_EXAMPLES.md)** - Real-world usage scenarios
+- **[Key Features](./KEY_FEATURES.md)** - Deep dive into auto-status updates and more
+- **[Technical Implementation](./TECHNICAL_IMPLEMENTATION.md)** - Architecture and algorithms
 
 ## 🌟 Features
 
@@ -46,15 +54,9 @@ Custom Model Context Protocol (MCP) server for the Vibe Coding Todo Manager. Thi
 - `get_in_progress_items` - Find all in-progress items
 - `get_recently_updated` - Get recently updated items
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-### Prerequisites
-
-- Node.js v16 or higher
-- MongoDB running (local or Atlas)
-- Claude Desktop or Claude Code
-
-### Install
+### 1. Install Dependencies
 
 ```bash
 cd vibe-todo-mcp
@@ -62,7 +64,61 @@ npm install
 npm run build
 ```
 
-## ⚙️ Configuration
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your MongoDB connection details
+```
+
+### 3. Configure Claude Desktop
+
+See **[Setup Guide](./SETUP_GUIDE.md)** for complete instructions.
+
+**Quick version:** Add to `~/.config/claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "vibe-todo": {
+      "command": "node",
+      "args": ["/absolute/path/to/vibe-todo-mcp/build/index.js"],
+      "env": {
+        "MONGODB_URI": "mongodb://localhost:27017",
+        "DB_NAME": "vibe_todo_manager"
+      }
+    }
+  }
+}
+```
+
+### 4. Restart Claude Desktop
+
+That's it! Start using natural language to manage your todos.
+
+**Need help?** See the [Setup Guide](./SETUP_GUIDE.md) for detailed instructions and troubleshooting.
+
+## 📖 Documentation
+
+### Essential Reading
+
+| Document | Purpose | Read When |
+|----------|---------|-----------|
+| [Setup Guide](./SETUP_GUIDE.md) | Installation & configuration | First time setup |
+| [Tools Reference](./TOOLS_REFERENCE.md) | All 30+ tools with examples | Learning available tools |
+| [Usage Examples](./USAGE_EXAMPLES.md) | Real-world scenarios | Understanding workflows |
+| [Key Features](./KEY_FEATURES.md) | Auto-status, hierarchy, etc. | Understanding how it works |
+| [Technical Implementation](./TECHNICAL_IMPLEMENTATION.md) | Architecture & algorithms | Contributing or debugging |
+
+### Quick Links
+
+- **Getting started?** → [Setup Guide](./SETUP_GUIDE.md)
+- **What can I do?** → [Tools Reference](./TOOLS_REFERENCE.md)
+- **Show me examples** → [Usage Examples](./USAGE_EXAMPLES.md)
+- **How does auto-status work?** → [Key Features](./KEY_FEATURES.md)
+- **Architecture details?** → [Technical Implementation](./TECHNICAL_IMPLEMENTATION.md)
+
+## ⚙️ Configuration (Deprecated - See Setup Guide)
 
 ### 1. Environment Variables
 
