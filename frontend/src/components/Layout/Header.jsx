@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import Modal from '../Common/Modal';
 
 export default function Header() {
   const { projects, currentProject, setCurrentProject, createProject } = useApp();
+  const { authEnabled, isAuthenticated, user, logout } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,6 +62,22 @@ export default function Header() {
                 + New Project
               </button>
             </div>
+
+            {/* User Info and Logout (only show if auth is enabled) */}
+            {authEnabled && isAuthenticated && user && (
+              <div className="flex items-center space-x-3 pl-4 border-l border-gray-300">
+                <div className="text-sm">
+                  <span className="text-gray-600">Logged in as </span>
+                  <span className="font-medium text-gray-900">{user.username}</span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
