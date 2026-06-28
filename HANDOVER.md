@@ -1905,7 +1905,44 @@ jobs:
 
 ## 🌐 Deployment Guide
 
-### Option 1: Docker Deployment (Recommended)
+### 🎯 Quick Links
+
+- **📘 [Google Cloud Platform Deployment Guide](./DEPLOYMENT_GCP.md)** ⭐ **RECOMMENDED for your environment**
+- Docker Deployment (below)
+- Traditional VPS Deployment (below)
+- Cloud Platforms (below)
+
+---
+
+### Option 1: Google Cloud Platform (GCP) ⭐ RECOMMENDED
+
+**You already have GCP VM + MongoDB + PostgreSQL + Redis!**
+
+**Complete step-by-step guide:** See **[DEPLOYMENT_GCP.md](./DEPLOYMENT_GCP.md)**
+
+**What it covers:**
+- ✅ Using your existing GCP VM
+- ✅ Connecting to your MongoDB (Atlas or self-hosted)
+- ✅ Nginx configuration
+- ✅ PM2 process management
+- ✅ SSL/HTTPS setup with Let's Encrypt
+- ✅ Cloud Logging & Monitoring
+- ✅ Automated backups to Cloud Storage
+- ✅ CI/CD with Cloud Build
+- ✅ Scaling strategies
+- ✅ Complete troubleshooting guide
+
+**Quick start:**
+```bash
+# 1. SSH into your GCP VM
+gcloud compute ssh your-vm-name --zone=your-zone
+
+# 2. Follow DEPLOYMENT_GCP.md step-by-step
+```
+
+---
+
+### Option 2: Docker Deployment
 
 #### 1. Create Dockerfiles
 
@@ -2454,29 +2491,34 @@ npm run build
    - Purpose: Complete knowledge transfer
    - Audience: New developers taking over the project
 
+5. **DEPLOYMENT_GCP.md** - Google Cloud Platform deployment ⭐
+   - Purpose: Complete GCP deployment guide
+   - Audience: DevOps, system administrators deploying to GCP
+   - Covers: VM setup, MongoDB, Nginx, PM2, SSL, monitoring, backups
+
 ### MCP Documentation
 
-5. **vibe-todo-mcp/README.md** - MCP overview
+6. **vibe-todo-mcp/README.md** - MCP overview
    - Purpose: What is the MCP server
    - Audience: Claude users
 
-6. **vibe-todo-mcp/SETUP_GUIDE.md** - MCP installation
+7. **vibe-todo-mcp/SETUP_GUIDE.md** - MCP installation
    - Purpose: How to install and configure MCP
    - Audience: Claude Desktop users
 
-7. **vibe-todo-mcp/TOOLS_REFERENCE.md** - All 30+ tools
+8. **vibe-todo-mcp/TOOLS_REFERENCE.md** - All 30+ tools
    - Purpose: Complete tool documentation
    - Audience: Claude users, MCP developers
 
-8. **vibe-todo-mcp/USAGE_EXAMPLES.md** - Real-world examples
+9. **vibe-todo-mcp/USAGE_EXAMPLES.md** - Real-world examples
    - Purpose: How to use MCP in practice
    - Audience: Claude users
 
-9. **vibe-todo-mcp/KEY_FEATURES.md** - Feature deep dives
-   - Purpose: Explain auto-status algorithm
-   - Audience: Developers understanding the system
+10. **vibe-todo-mcp/KEY_FEATURES.md** - Feature deep dives
+    - Purpose: Explain auto-status algorithm
+    - Audience: Developers understanding the system
 
-10. **vibe-todo-mcp/TECHNICAL_IMPLEMENTATION.md** - Architecture
+11. **vibe-todo-mcp/TECHNICAL_IMPLEMENTATION.md** - Architecture
     - Purpose: Technical architecture details
     - Audience: Developers, technical leads
 
