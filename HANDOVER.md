@@ -981,7 +981,7 @@ vibe_todo_manager/
   "type": "epic",
   "title": "User Authentication System",
   "description": "Complete auth flow",
-  "status": "in-progress",
+  "status": "in_progress",
   "progress": 67,
   "created_at": ISODate("..."),
   "updated_at": ISODate("...")
@@ -1557,7 +1557,7 @@ export DB_NAME=vibe_todo_manager
 **Valid status values (DO NOT CHANGE):**
 - `"planning"` - Planning phase
 - `"todo"` - Ready to start
-- `"in-progress"` - Currently working
+- `"in_progress"` - Currently working
 - `"done"` - Completed
 - `"blocked"` - Blocked by external dependency
 
@@ -2246,10 +2246,11 @@ function sanitizeProjectName(name) {
 
 **MUST use exact values:**
 - ✅ `"planning"` 
-- ✅ `"in-progress"` (with hyphen!)
+- ✅ `"in_progress"` (with underscore!)
 - ✅ `"done"`
 - ❌ `"Planning"` (capital P)
-- ❌ `"in progress"` (space instead of hyphen)
+- ❌ `"in-progress"` (hyphen instead of underscore)
+- ❌ `"in progress"` (space instead of underscore)
 
 **Why:** Auto-status algorithm checks for exact `"done"` value.
 
