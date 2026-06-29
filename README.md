@@ -423,6 +423,52 @@ npm run build
 
 Built files will be in `frontend/dist/`
 
+## 🌐 Deployment
+
+### Google Cloud Platform (GCP) ⭐ RECOMMENDED
+
+**Complete deployment guide:** **[DEPLOYMENT_GCP.md](./DEPLOYMENT_GCP.md)**
+
+Perfect if you have:
+- ✅ GCP Compute Engine VM
+- ✅ MongoDB (Cloud SQL, Atlas, or self-hosted)
+- ✅ Domain name (optional)
+
+**Covers:**
+- Step-by-step VM setup
+- Nginx reverse proxy configuration
+- PM2 process management
+- SSL/HTTPS with Let's Encrypt
+- Cloud Logging & Monitoring
+- Automated backups
+- CI/CD with Cloud Build
+
+**Quick Deploy:**
+```bash
+# SSH into your GCP VM
+gcloud compute ssh your-vm-name --zone=your-zone
+
+# Clone repository
+git clone <repo-url>
+cd claude-todo
+
+# Follow DEPLOYMENT_GCP.md
+```
+
+### Other Deployment Options
+
+**Docker:**
+- See `HANDOVER.md` → Deployment Guide → Docker Deployment
+- Includes docker-compose.yml for all services
+
+**Traditional VPS/EC2:**
+- See `HANDOVER.md` → Deployment Guide → Traditional Deployment
+- Ubuntu/Debian setup with nginx + PM2
+
+**Cloud Platforms:**
+- Vercel (Frontend) + Railway (Backend) + MongoDB Atlas
+- See `HANDOVER.md` for configuration
+
 ## 📈 Future Enhancements
 
 Potential features for future versions:
