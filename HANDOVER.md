@@ -248,11 +248,13 @@ These run via `npm test` in `backend/` using Node's built-in test runner with
 an in-memory fake collection — no MongoDB required.
 
 **Also covered:** task CRUD + auto-status trigger (`taskController.test.js`),
-project create/delete + name sanitization (`projectController.test.js`), and JWT
-generate/verify/decode (`jwt.test.js`).
+project create/delete + name sanitization (`projectController.test.js`), tree
+building (`treeController.test.js`), the `AUTH_ENABLED` auth-guard middleware
+(`authMiddleware.test.js`), and JWT generate/verify/decode (`jwt.test.js`).
+Every backend controller plus the auth middleware now has unit coverage
+(**48 tests**, `cd backend && npm test`).
 
 **What's still needed:**
-- [ ] Backend tests for the remaining controller (tree) and middleware (auth guard)
 - [ ] API integration tests against a real/ephemeral MongoDB (endpoints)
 - [ ] Frontend component tests (React Testing Library / Vitest)
 - [ ] E2E tests (Playwright/Cypress)
