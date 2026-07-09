@@ -254,9 +254,12 @@ building (`treeController.test.js`), the `AUTH_ENABLED` auth-guard middleware
 Every backend controller plus the auth middleware now has unit coverage
 (**48 tests**, `cd backend && npm test`).
 
+**Frontend:** Vitest + React Testing Library cover the API/auth service layers
+and the `AppContext`/`AuthContext` providers (`cd frontend && npm test`).
+
 **What's still needed:**
 - [ ] API integration tests against a real/ephemeral MongoDB (endpoints)
-- [ ] Frontend component tests (React Testing Library / Vitest)
+- [ ] Frontend component tests for individual UI components (forms, cards)
 - [ ] E2E tests (Playwright/Cypress)
 
 **Suggested approach for the remaining work:**
