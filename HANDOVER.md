@@ -265,8 +265,18 @@ controllers, and driver queries — health, project sanitization, 404s,
 validation, end-to-end auto-status, and cascade delete
 (`cd backend && npm run test:integration`).
 
+**E2E:** A Playwright smoke test drives the whole stack (Vite dev + an
+ephemeral-MongoDB backend, Chromium) through create project → epic → feature →
+task → mark done → auto-status on the Epics view
+(`cd frontend && npm run test:e2e`). Chromium is pre-installed; the backend is
+launched by `backend/scripts/e2e-server.mjs`.
+
+> Note: this E2E test caught a real bug — the Epic/Feature/Task views returned
+> their empty state *before* rendering the create-modal, so the "Create First …"
+> buttons did nothing on a brand-new project. Fixed by always rendering the modal.
+
 **What's still needed:**
-- [ ] E2E tests (Playwright/Cypress)
+- [ ] More E2E flows (edit, delete, auth-enabled login) if desired
 
 **Suggested approach for the remaining work:**
 ```bash
