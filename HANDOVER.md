@@ -257,8 +257,13 @@ Every backend controller plus the auth middleware now has unit coverage
 **Frontend:** Vitest + React Testing Library cover the API/auth service layers
 and the `AppContext`/`AuthContext` providers (`cd frontend && npm test`).
 
+**Integration:** Full HTTP tests against an ephemeral MongoDB
+(`mongodb-memory-server` + Supertest) exercise real routing, middleware,
+controllers, and driver queries — health, project sanitization, 404s,
+validation, end-to-end auto-status, and cascade delete
+(`cd backend && npm run test:integration`).
+
 **What's still needed:**
-- [ ] API integration tests against a real/ephemeral MongoDB (endpoints)
 - [ ] Frontend component tests for individual UI components (forms, cards)
 - [ ] E2E tests (Playwright/Cypress)
 

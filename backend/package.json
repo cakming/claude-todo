@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "node --test --experimental-test-module-mocks"
+    "test": "node --test --experimental-test-module-mocks \"tests/*.test.js\"",
+    "test:integration": "node --test \"tests/integration/*.test.js\""
   },
   "keywords": [
     "todo",
@@ -26,6 +27,8 @@
     "mongodb": "^6.3.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "mongodb-memory-server": "^10.4.3",
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2"
   }
 }

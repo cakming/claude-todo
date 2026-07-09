@@ -94,7 +94,10 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Start the server
-startServer();
+// Start the server (skipped under tests, which import `app` and manage their
+// own database connection).
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 export default app;
