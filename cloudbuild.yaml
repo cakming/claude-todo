@@ -1,0 +1,43 @@
+# Cloud Build pipeline for deploying Vibe Todo to the GCP VM.
+#
+# Trigger: push to `main`. Cloud Build connects to the VM over SSH (through
+# IAP, so no public SSH port is required) and runs deploy/deploy.sh there,
+# which pulls the latest code, builds, and reloads the backend via PM2.
+#
+# One-time trigger setup (or create it in the Console):
+#   gcloud builds triggers create github \
+#     --name=deploy-vibe-todo \
+#     --repo-name=claude-todo --repo-owner=cakming \
+#     --branch-pattern='^main$' \
+#     --build-config=cloudbuild.yaml
+#
+# Required IAM on the Cloud Build service account
+# (PROJECT_NUMBER@cloudbuild.gserviceaccount.com):
+#   - roles/compute.osLogin           (SSH into the VM via OS Login)
+#   - roles/iap.tunnelResourceAccessor (IAP TCP tunnel to the VM)
+#   - roles/iam.serviceAccountUser     (actAs the VM's service account)
+# And the VM must allow IAP TCP ingress on port 22 (firewall from 35.235.240.0/20).
+
+substitutions:
+  _VM_NAME: "your-vm-name" # <-- set to your Compute Engine instance name
+  _ZONE: "us-central1-a" # <-- set to your VM's zone
+  _APP_DIR: "/var/www/vibe-todo"
+
+steps:
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: deploy-over-ssh
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        gcloud compute ssh "${_VM_NAME}" \
+          --zone "${_ZONE}" \
+          --project "$PROJECT_ID" \
+          --tunnel-through-iap \
+          --command "APP_DIR=${_APP_DIR} bash ${_APP_DIR}/deploy/deploy.sh"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s
