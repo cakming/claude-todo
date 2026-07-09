@@ -115,67 +115,67 @@ export default function FeatureView() {
     return <Loading message="Loading features..." />;
   }
 
-  if (features.length === 0) {
-    return (
-      <EmptyState
-        icon="✨"
-        title="No Features Yet"
-        message="Create your first feature under an epic. Features contain tasks."
-        action={
-          epics.length > 0 ? (
-            <button onClick={handleCreate} className="btn-primary">
-              Create First Feature
-            </button>
-          ) : (
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">You need to create an epic first!</p>
-            </div>
-          )
-        }
-      />
-    );
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Features</h2>
-          <p className="text-gray-600 mt-1">
-            Feature implementations organized by epic
-          </p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={selectedEpicFilter}
-            onChange={(e) => setSelectedEpicFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Epics</option>
-            {epics.map(epic => (
-              <option key={epic._id} value={epic._id}>
-                {epic.title}
-              </option>
-            ))}
-          </select>
-          <button onClick={handleCreate} className="btn-primary">
-            + Add Feature
-          </button>
-        </div>
-      </div>
+      {features.length === 0 ? (
+        <EmptyState
+          icon="✨"
+          title="No Features Yet"
+          message="Create your first feature under an epic. Features contain tasks."
+          action={
+            epics.length > 0 ? (
+              <button onClick={handleCreate} className="btn-primary">
+                Create First Feature
+              </button>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">You need to create an epic first!</p>
+              </div>
+            )
+          }
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Features</h2>
+              <p className="text-gray-600 mt-1">
+                Feature implementations organized by epic
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <select
+                value={selectedEpicFilter}
+                onChange={(e) => setSelectedEpicFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Epics</option>
+                {epics.map(epic => (
+                  <option key={epic._id} value={epic._id}>
+                    {epic.title}
+                  </option>
+                ))}
+              </select>
+              <button onClick={handleCreate} className="btn-primary">
+                + Add Feature
+              </button>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredFeatures.map(feature => (
-          <FeatureCard
-            key={feature._id}
-            feature={feature}
-            epicName={feature.epicName}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExpand={() => {}}
-          />
-        ))}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFeatures.map(feature => (
+              <FeatureCard
+                key={feature._id}
+                feature={feature}
+                epicName={feature.epicName}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onExpand={() => {}}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       <Modal
         isOpen={showModal}

@@ -93,46 +93,46 @@ export default function EpicView() {
     return <Loading message="Loading epics..." />;
   }
 
-  if (epics.length === 0) {
-    return (
-      <EmptyState
-        icon="📊"
-        title="No Epics Yet"
-        message="Create your first epic to organize your large body of work. Epics contain features and tasks."
-        action={
-          <button onClick={handleCreate} className="btn-primary">
-            Create First Epic
-          </button>
-        }
-      />
-    );
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Epics</h2>
-          <p className="text-gray-600 mt-1">
-            Large bodies of work organized into features
-          </p>
-        </div>
-        <button onClick={handleCreate} className="btn-primary">
-          + Add Epic
-        </button>
-      </div>
+      {epics.length === 0 ? (
+        <EmptyState
+          icon="📊"
+          title="No Epics Yet"
+          message="Create your first epic to organize your large body of work. Epics contain features and tasks."
+          action={
+            <button onClick={handleCreate} className="btn-primary">
+              Create First Epic
+            </button>
+          }
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Epics</h2>
+              <p className="text-gray-600 mt-1">
+                Large bodies of work organized into features
+              </p>
+            </div>
+            <button onClick={handleCreate} className="btn-primary">
+              + Add Epic
+            </button>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {epics.map(epic => (
-          <EpicCard
-            key={epic._id}
-            epic={epic}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExpand={setExpandedEpic}
-          />
-        ))}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {epics.map(epic => (
+              <EpicCard
+                key={epic._id}
+                epic={epic}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onExpand={setExpandedEpic}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

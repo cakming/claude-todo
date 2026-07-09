@@ -124,22 +124,43 @@ export default function TaskView() {
 
   if (tasks.length === 0) {
     return (
-      <EmptyState
-        icon="✅"
-        title="No Tasks Yet"
-        message="Create your first task under a feature to start tracking work."
-        action={
-          features.length > 0 ? (
-            <button onClick={handleCreate} className="btn-primary">
-              Create First Task
-            </button>
-          ) : (
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">You need to create features first!</p>
-            </div>
-          )
-        }
-      />
+      <div>
+        <EmptyState
+          icon="✅"
+          title="No Tasks Yet"
+          message="Create your first task under a feature to start tracking work."
+          action={
+            features.length > 0 ? (
+              <button onClick={handleCreate} className="btn-primary">
+                Create First Task
+              </button>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">You need to create features first!</p>
+              </div>
+            )
+          }
+        />
+
+        <Modal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingTask(null);
+          }}
+          title={editingTask ? 'Edit Task' : 'Create New Task'}
+        >
+          <TaskForm
+            task={editingTask}
+            features={features}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              setShowModal(false);
+              setEditingTask(null);
+            }}
+          />
+        </Modal>
+      </div>
     );
   }
 
