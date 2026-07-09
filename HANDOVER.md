@@ -247,8 +247,12 @@ Claude: *uses mark-task-done tool, auto-updates parent feature*
 These run via `npm test` in `backend/` using Node's built-in test runner with
 an in-memory fake collection — no MongoDB required.
 
+**Also covered:** task CRUD + auto-status trigger (`taskController.test.js`),
+project create/delete + name sanitization (`projectController.test.js`), and JWT
+generate/verify/decode (`jwt.test.js`).
+
 **What's still needed:**
-- [ ] Backend tests for remaining controllers (tasks, tree, projects) and utils (jwt)
+- [ ] Backend tests for the remaining controller (tree) and middleware (auth guard)
 - [ ] API integration tests against a real/ephemeral MongoDB (endpoints)
 - [ ] Frontend component tests (React Testing Library / Vitest)
 - [ ] E2E tests (Playwright/Cypress)

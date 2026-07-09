@@ -54,11 +54,20 @@ export function makeCollection(initialDocs = []) {
       docs.splice(idx, 1);
       return { deletedCount: 1 };
     },
+    async updateOne(query, update) {
+      const doc = docs.find((d) => matches(d, query));
+      if (doc && update.$set) Object.assign(doc, update.$set);
+      return { modifiedCount: doc ? 1 : 0 };
+    },
     async findOneAndUpdate(query, update, options = {}) {
       const doc = docs.find((d) => matches(d, query));
       if (!doc) return null;
       if (update.$set) Object.assign(doc, update.$set);
       return options.returnDocument === 'after' ? doc : { ...doc };
+    },
+    // No-op: index creation is a side effect the controllers call but tests ignore.
+    async createIndex() {
+      return 'index_created';
     }
   };
 }
