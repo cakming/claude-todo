@@ -265,18 +265,27 @@ controllers, and driver queries — health, project sanitization, 404s,
 validation, end-to-end auto-status, and cascade delete
 (`cd backend && npm run test:integration`).
 
-**E2E:** A Playwright smoke test drives the whole stack (Vite dev + an
-ephemeral-MongoDB backend, Chromium) through create project → epic → feature →
-task → mark done → auto-status on the Epics view
-(`cd frontend && npm run test:e2e`). Chromium is pre-installed; the backend is
-launched by `backend/scripts/e2e-server.mjs`.
+**E2E:** Playwright drives the whole stack (Vite dev + an ephemeral-MongoDB
+backend, Chromium) — `cd frontend && npm run test:e2e`. Flows:
+- smoke: create project → epic → feature → task → mark done → auto-status
+- edit an epic's title
+- delete an epic and verify the cascade empties the project
+- tree view renders the full hierarchy
 
-> Note: this E2E test caught a real bug — the Epic/Feature/Task views returned
-> their empty state *before* rendering the create-modal, so the "Create First …"
-> buttons did nothing on a brand-new project. Fixed by always rendering the modal.
+Chromium is pre-installed; the backend is launched by
+`backend/scripts/e2e-server.mjs`. Tests isolate via a DB reset before each
+(`POST /__test__/reset`, gated behind `E2E_TEST` — never enabled in prod).
+
+> Note: E2E caught two real bugs. (1) The Epic/Feature/Task views returned their
+> empty state *before* rendering the create-modal, so the "Create First …"
+> buttons did nothing on a new project — fixed by always rendering the modal.
+> (2) A stale-response race: switching projects while `loadEpics` is in flight
+> can render the previous project's epics under the new one. Worked around in
+> tests via per-test DB reset; the app-side guard is still open (see below).
 
 **What's still needed:**
-- [ ] More E2E flows (edit, delete, auth-enabled login) if desired
+- [ ] Guard `loadEpics`/`loadData` against out-of-order responses (stale-render race)
+- [ ] More E2E flows (auth-enabled login) if desired
 
 **Suggested approach for the remaining work:**
 ```bash

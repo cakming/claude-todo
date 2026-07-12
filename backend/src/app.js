@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB, closeDB } from './config/mongodb.js';
+import { connectDB, closeDB, getDB } from './config/mongodb.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
 import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
@@ -54,6 +54,20 @@ app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
 app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
 app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
+
+// Test-only endpoint to reset the database between E2E tests. Gated behind
+// E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs
+// sets it). Registered before the 404 handler so it is reachable.
+if (process.env.E2E_TEST === 'true') {
+  app.post('/__test__/reset', async (req, res) => {
+    try {
+      await getDB().dropDatabase();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+}
 
 // Error handling
 app.use(notFoundHandler);

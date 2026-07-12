@@ -12,6 +12,7 @@ process.env.DB_NAME = 'vibe_todo_e2e';
 process.env.PORT = '3001';
 process.env.AUTH_ENABLED = 'false';
 process.env.CORS_ORIGIN = 'http://localhost:5173';
+process.env.E2E_TEST = 'true'; // enables the /__test__/reset endpoint for isolation
 process.env.NODE_ENV = 'development'; // ensure app.js auto-starts (it skips under 'test')
 
 // Importing the app runs startServer(): connectDB() + app.listen(PORT).
