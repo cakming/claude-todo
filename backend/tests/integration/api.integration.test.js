@@ -186,6 +186,35 @@ test('export then import copies a project into another', async () => {
   assert.equal(epicsInDst.body.data[0].title, 'Exported Epic');
 });
 
+test('bulk status and bulk delete update tasks and their parent feature', async () => {
+  const project = await makeProject('bulk');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const fid = feature.body.data._id;
+  const t1 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'T1' });
+  const t2 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'T2' });
+  const ids = [t1.body.data._id, t2.body.data._id];
+
+  const bulk = await request(app).post(`/api/${project}/tasks/bulk/status`).send({ ids, status: 'done' });
+  assert.equal(bulk.status, 200);
+  assert.equal(bulk.body.updated, 2);
+
+  // With all tasks done, the parent feature auto-completes.
+  const tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data[0].features[0].status, 'done');
+
+  const del = await request(app).post(`/api/${project}/tasks/bulk/delete`).send({ ids });
+  assert.equal(del.body.deleted, 2);
+  const remaining = await request(app).get(`/api/${project}/tasks/by-feature/${fid}`);
+  assert.equal(remaining.body.data.length, 0);
+
+  // Validation: empty ids -> 400.
+  const bad = await request(app).post(`/api/${project}/tasks/bulk/status`).send({ ids: [], status: 'done' });
+  assert.equal(bad.status, 400);
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

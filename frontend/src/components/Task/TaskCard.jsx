@@ -2,7 +2,7 @@ import { useState } from 'react';
 import StatusBadge from '../Common/StatusBadge';
 import { truncate } from '../../utils/helpers';
 
-export default function TaskCard({ task, featureName, epicName, onEdit, onDelete, onStatusChange }) {
+export default function TaskCard({ task, featureName, epicName, onEdit, onDelete, onStatusChange, selected, onToggleSelect }) {
   const [showMenu, setShowMenu] = useState(false);
 
   const isOverdue =
@@ -12,6 +12,17 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
 
   return (
     <div className="card mb-3 hover:shadow-md transition-shadow relative">
+      {onToggleSelect && (
+        <input
+          type="checkbox"
+          checked={!!selected}
+          onChange={() => onToggleSelect(task)}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute top-2 left-2 h-4 w-4 cursor-pointer"
+          aria-label={`Select ${task.title}`}
+        />
+      )}
       <div className="absolute top-2 right-2">
         <button
           onClick={() => setShowMenu(!showMenu)}
@@ -43,7 +54,7 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
         )}
       </div>
 
-      <div className="pr-6">
+      <div className={`pr-6 ${onToggleSelect ? 'pl-6' : ''}`}>
         <div className="text-xs text-gray-500 mb-2">
           📊 {epicName} / ✨ {featureName}
         </div>

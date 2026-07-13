@@ -82,6 +82,33 @@ test('dragging a task to the Done column changes its status', async ({ page }) =
   await expect(page.getByText('To Do (0)')).toBeVisible();
 });
 
+test('bulk-selecting tasks and marking them done moves them together', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Bulk Epic');
+  await createFeature(page, 'Bulk Epic', 'Bulk Feature');
+  await createTask(page, 'Bulk Epic / Bulk Feature', 'Bulk Task 1');
+
+  // Add a second task under the same feature via the "+ Add Task" button.
+  await page.getByRole('button', { name: '+ Add Task' }).click();
+  await expect(page.getByRole('heading', { name: 'Create New Task' })).toBeVisible();
+  const featureSelect = page.locator('select').filter({ has: page.getByRole('option', { name: 'Select a feature' }) });
+  await featureSelect.selectOption({ label: 'Bulk Epic / Bulk Feature' });
+  await page.getByPlaceholder('Add item to cart API').fill('Bulk Task 2');
+  await page.getByRole('button', { name: 'Create Task' }).click();
+
+  await expect(page.getByText('To Do (2)')).toBeVisible();
+
+  // Select both, then mark them done in one action.
+  await page.getByLabel('Select Bulk Task 1').check();
+  await page.getByLabel('Select Bulk Task 2').check();
+  await expect(page.getByText('2 selected')).toBeVisible();
+  await page.getByRole('button', { name: 'Mark Done' }).click();
+
+  await expect(page.getByText('Done (2)')).toBeVisible();
+  await expect(page.getByText('To Do (0)')).toBeVisible();
+});
+
 test('activity feed lists recent changes', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

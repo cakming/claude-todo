@@ -62,7 +62,37 @@ export default function TaskView() {
   const [editingTask, setEditingTask] = useState(null);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'list'
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
   const loadIdRef = useRef(0);
+
+  const toggleSelect = (task) => {
+    setSelectedIds((prev) =>
+      prev.includes(task._id) ? prev.filter((id) => id !== task._id) : [...prev, task._id]
+    );
+  };
+
+  const bulkMarkDone = async () => {
+    try {
+      await tasksApi.bulkStatus(currentProject, selectedIds, 'done');
+      showToast(`${selectedIds.length} task(s) marked done`, 'success');
+      setSelectedIds([]);
+      loadData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} selected task(s)?`)) return;
+    try {
+      await tasksApi.bulkDelete(currentProject, selectedIds);
+      showToast(`${selectedIds.length} task(s) deleted`, 'success');
+      setSelectedIds([]);
+      loadData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
 
   useEffect(() => {
     if (currentProject) {
@@ -278,6 +308,23 @@ export default function TaskView() {
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-900">{selectedIds.length} selected</span>
+          <div className="flex items-center space-x-3">
+            <button onClick={bulkMarkDone} className="btn-primary text-sm py-1">
+              Mark Done
+            </button>
+            <button onClick={bulkDelete} className="text-sm text-red-600 hover:text-red-700">
+              Delete
+            </button>
+            <button onClick={() => setSelectedIds([])} className="text-sm text-gray-600 hover:text-gray-800">
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'kanban' ? (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -298,6 +345,8 @@ export default function TaskView() {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onStatusChange={handleStatusChange}
+                        selected={selectedIds.includes(task._id)}
+                        onToggleSelect={toggleSelect}
                       />
                     </DraggableTask>
                   ))}
@@ -317,6 +366,8 @@ export default function TaskView() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              selected={selectedIds.includes(task._id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>

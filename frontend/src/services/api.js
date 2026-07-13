@@ -192,6 +192,24 @@ export const tasksApi = {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
+  },
+
+  bulkStatus: async (project, ids, status) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/tasks/bulk/status`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify({ ids, status })
+    });
+    return handleResponse(response);
+  },
+
+  bulkDelete: async (project, ids) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/tasks/bulk/delete`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify({ ids })
+    });
+    return handleResponse(response);
   }
 };
 
