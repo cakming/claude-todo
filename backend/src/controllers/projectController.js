@@ -1,4 +1,5 @@
 import { listProjectCollections, getProjectCollection, createProjectIndexes, getDB } from '../config/mongodb.js';
+import { emitProjectsUpdate } from '../realtime.js';
 
 /**
  * Get all projects
@@ -64,6 +65,8 @@ export async function createProject(req, res) {
     // Create indexes
     await createProjectIndexes(sanitizedName);
 
+    emitProjectsUpdate();
+
     res.status(201).json({
       success: true,
       data: {
@@ -99,6 +102,8 @@ export async function deleteProject(req, res) {
     // Drop the collection
     const db = getDB();
     await db.dropCollection(`project_${name}`);
+
+    emitProjectsUpdate();
 
     res.json({
       success: true,

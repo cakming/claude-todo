@@ -1,5 +1,14 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import { projectsApi } from '../services/api';
+
+// Resolve the Socket.IO server origin from the API base. In production the API
+// is same-origin (VITE_API_URL=/api) so we connect to window.location.origin;
+// in dev it points at the backend (e.g. http://localhost:3001).
+function socketUrl() {
+  const base = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  return base.startsWith('http') ? base.replace(/\/api\/?$/, '') : undefined;
+}
 
 const AppContext = createContext();
 
@@ -16,11 +25,15 @@ export function AppProvider({ children }) {
     loadProjects();
   }, []);
 
-  // Drive periodic background refreshes (near-real-time updates across tabs).
-  // Views watch `refreshTick` and reload silently (without a loading spinner).
+  // Real-time updates via Socket.IO. The server emits on every change; views
+  // watch `refreshTick` and reload silently (no spinner). Auto-reconnects.
   useEffect(() => {
-    const id = setInterval(() => setRefreshTick((t) => t + 1), 10000);
-    return () => clearInterval(id);
+    const url = socketUrl();
+    const opts = { transports: ['websocket', 'polling'] };
+    const socket = url ? io(url, opts) : io(opts);
+    socket.on('project:updated', () => setRefreshTick((t) => t + 1));
+    socket.on('projects:updated', () => loadProjects());
+    return () => socket.disconnect();
   }, []);
 
   const loadProjects = async () => {

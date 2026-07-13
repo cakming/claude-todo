@@ -33,7 +33,7 @@ export default function TreeView() {
     } catch (error) {
       if (!silent && loadId === loadIdRef.current) showToast('Failed to load tree view', 'error');
     } finally {
-      if (!silent && loadId === loadIdRef.current) setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

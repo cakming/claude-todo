@@ -1,7 +1,7 @@
 import express from 'express';
 import { getTasksByFeature, getTaskById, createTask, updateTask, deleteTask } from '../controllers/taskController.js';
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 // Routes with featureId parameter
 router.get('/by-feature/:featureId', getTasksByFeature);

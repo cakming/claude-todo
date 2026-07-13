@@ -7,6 +7,11 @@ vi.mock('../services/api', () => ({
   projectsApi: { getAll: vi.fn(), create: vi.fn(), delete: vi.fn() }
 }));
 
+// Stub the socket so tests don't open a real connection.
+vi.mock('socket.io-client', () => ({
+  io: () => ({ on: vi.fn(), disconnect: vi.fn() })
+}));
+
 import { projectsApi } from '../services/api';
 
 function Probe() {

@@ -120,7 +120,7 @@ export default function TaskView() {
     } catch (error) {
       if (!silent && loadId === loadIdRef.current) showToast('Failed to load tasks', 'error');
     } finally {
-      if (!silent && loadId === loadIdRef.current) setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

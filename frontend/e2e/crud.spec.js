@@ -112,6 +112,27 @@ test('dark mode toggle flips and persists the theme', async ({ page }) => {
   await expect(html).toHaveClass(nowDark ? /dark/ : /^(?!.*dark).*$/);
 });
 
+test('changes propagate to another tab in real time (websocket)', async ({ page, context }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Realtime Epic');
+
+  // A second tab on the same project (auto-selected — it's the only one).
+  const pageB = await context.newPage();
+  await pageB.goto('/');
+  await expect(pageB.getByRole('heading', { name: /Realtime Epic/ })).toBeVisible();
+
+  // Add a second epic in tab A...
+  await page.getByRole('button', { name: '+ Add Epic' }).click();
+  await page.getByPlaceholder('E-Commerce Platform v2').fill('Pushed Epic');
+  await page.getByRole('button', { name: 'Create Epic' }).click();
+  await expect(page.getByRole('heading', { name: /Pushed Epic/ })).toBeVisible();
+
+  // ...and tab B sees it appear without any navigation or manual refresh.
+  await expect(pageB.getByRole('heading', { name: /Pushed Epic/ })).toBeVisible();
+  await pageB.close();
+});
+
 test('tree view renders the full hierarchy', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
