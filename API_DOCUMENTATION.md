@@ -108,6 +108,20 @@ Get all epics for a project.
 
 **Example:** `GET /api/my_project/epics`
 
+**Query parameters (all optional):**
+
+| Param    | Description                                                            |
+|----------|------------------------------------------------------------------------|
+| `search` | Case-insensitive match on title or description (special chars literal) |
+| `status` | Exact status filter (e.g. `blocked`)                                   |
+| `limit`  | Page size; enables pagination                                          |
+| `page`   | 1-based page number (used with `limit`)                                |
+
+When `limit` is supplied the response also includes a `pagination` object
+(`{ page, limit, total, totalPages }`). The `search` and `status` filters are
+also accepted by the feature (`GET .../features/by-epic/:epicId`) and task
+(`GET .../tasks/by-feature/:featureId`) list endpoints.
+
 **Response:**
 ```json
 {
@@ -200,11 +214,34 @@ Update an epic.
 
 Delete an epic and all its features and tasks (cascade delete).
 
+The response includes a `removed` array containing every deleted document
+(the epic plus its cascaded features and tasks). Pass it back to
+`POST /api/:project/restore` to undo the delete. The feature, task, and bulk
+task delete endpoints return `removed` the same way.
+
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Epic and all related features and tasks deleted successfully"
+  "message": "Epic and all related features and tasks deleted successfully",
+  "removed": [ { "_id": "...", "type": "epic", "...": "..." } ]
+}
+```
+
+### POST /api/:project/restore
+
+Restore previously-deleted items (the undo of a delete). Pass the `removed`
+array returned by a delete endpoint. Ids are preserved so parent/child links
+stay intact; the operation is idempotent, and affected parent statuses are
+recomputed.
+
+**Request body:** `{ "items": [ ...documents from a delete's `removed`... ] }`
+
+**Response:**
+```json
+{
+  "success": true,
+  "restored": 3
 }
 ```
 
