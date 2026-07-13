@@ -4,8 +4,31 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
+}
+
+/*
+ * Blanket dark-mode overrides for the common Tailwind grays the app uses, so
+ * the whole UI themes coherently without adding dark: variants to every
+ * component. Higher-specificity selectors (.dark .x) win over the base utility.
+ */
+@layer utilities {
+  .dark .bg-white { background-color: #1f2937; }        /* gray-800 */
+  .dark .bg-gray-50 { background-color: #111827; }       /* gray-900 */
+  .dark .bg-gray-100 { background-color: #374151; }      /* gray-700 */
+  .dark .bg-gray-200 { background-color: #374151; }      /* gray-700 */
+
+  .dark .text-gray-900 { color: #f3f4f6; }
+  .dark .text-gray-800 { color: #e5e7eb; }
+  .dark .text-gray-700 { color: #d1d5db; }
+  .dark .text-gray-600 { color: #9ca3af; }
+  .dark .text-gray-500 { color: #9ca3af; }
+
+  .dark .border-gray-200 { border-color: #374151; }
+  .dark .border-gray-300 { border-color: #4b5563; }
+
+  .dark .divide-gray-100 > * + * { border-color: #374151; }
 }
 
 @layer components {
@@ -22,7 +45,7 @@
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-md p-4 border border-gray-200;
+    @apply bg-white rounded-lg shadow-md p-4 border border-gray-200 dark:bg-gray-800 dark:border-gray-700;
   }
 
   .status-badge {
