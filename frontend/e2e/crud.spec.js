@@ -44,6 +44,20 @@ test('deleting an epic cascades and empties the project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'No Features Yet' })).toBeVisible();
 });
 
+test('search filters the epic list', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Searchable Epic');
+
+  const search = page.getByPlaceholder('Search epics...');
+  await search.fill('zzz');
+  await expect(page.getByRole('heading', { name: /Searchable Epic/ })).toHaveCount(0);
+  await expect(page.getByText(/No epics match/)).toBeVisible();
+
+  await search.fill('Search');
+  await expect(page.getByRole('heading', { name: /Searchable Epic/ })).toBeVisible();
+});
+
 test('tree view renders the full hierarchy', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

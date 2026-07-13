@@ -35,6 +35,17 @@ export function truncate(text, maxLength = 100) {
 }
 
 /**
+ * Filter a list of items by a case-insensitive query across the given fields.
+ */
+export function filterByQuery(items, query, fields = ['title', 'desc']) {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(item =>
+    fields.some(field => String(item[field] || '').toLowerCase().includes(q))
+  );
+}
+
+/**
  * Get status color class
  */
 export function getStatusClass(status) {

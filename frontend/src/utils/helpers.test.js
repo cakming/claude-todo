@@ -5,7 +5,8 @@ import {
   getStatusDisplay,
   calculateProgress,
   hasBlockedChildren,
-  sortByStatusPriority
+  sortByStatusPriority,
+  filterByQuery
 } from './helpers.js';
 
 describe('truncate', () => {
@@ -52,6 +53,29 @@ describe('hasBlockedChildren', () => {
     const epic = { features: [{ status: 'todo', tasks: [{ status: 'done' }] }] };
     expect(hasBlockedChildren(epic)).toBe(false);
     expect(hasBlockedChildren(null)).toBe(false);
+  });
+});
+
+describe('filterByQuery', () => {
+  const items = [
+    { title: 'Login API', desc: 'auth endpoint' },
+    { title: 'Cart UI', desc: 'shopping cart' },
+    { title: 'Checkout', desc: 'payment flow' }
+  ];
+
+  test('returns all items for an empty query', () => {
+    expect(filterByQuery(items, '')).toHaveLength(3);
+    expect(filterByQuery(items, '   ')).toHaveLength(3);
+  });
+
+  test('matches title or desc, case-insensitively', () => {
+    expect(filterByQuery(items, 'cart').map((i) => i.title)).toEqual(['Cart UI']);
+    expect(filterByQuery(items, 'PAYMENT').map((i) => i.title)).toEqual(['Checkout']);
+    expect(filterByQuery(items, 'api')).toHaveLength(1);
+  });
+
+  test('returns nothing when there is no match', () => {
+    expect(filterByQuery(items, 'zzz')).toEqual([]);
   });
 });
 

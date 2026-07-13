@@ -6,7 +6,7 @@ import EpicForm from '../components/Epic/EpicForm';
 import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
-import { calculateProgress } from '../utils/helpers';
+import { calculateProgress, filterByQuery } from '../utils/helpers';
 
 export default function EpicView() {
   const { currentProject, showToast } = useApp();
@@ -15,6 +15,7 @@ export default function EpicView() {
   const [showModal, setShowModal] = useState(false);
   const [editingEpic, setEditingEpic] = useState(null);
   const [expandedEpic, setExpandedEpic] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const loadIdRef = useRef(0);
 
   useEffect(() => {
@@ -119,22 +120,35 @@ export default function EpicView() {
                 Large bodies of work organized into features
               </p>
             </div>
-            <button onClick={handleCreate} className="btn-primary">
-              + Add Epic
-            </button>
+            <div className="flex items-center space-x-3">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search epics..."
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button onClick={handleCreate} className="btn-primary">
+                + Add Epic
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {epics.map(epic => (
-              <EpicCard
-                key={epic._id}
-                epic={epic}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onExpand={setExpandedEpic}
-              />
-            ))}
-          </div>
+          {filterByQuery(epics, searchQuery).length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No epics match "{searchQuery}".</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filterByQuery(epics, searchQuery).map(epic => (
+                <EpicCard
+                  key={epic._id}
+                  epic={epic}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onExpand={setExpandedEpic}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 

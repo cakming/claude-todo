@@ -6,6 +6,7 @@ import TaskForm from '../components/Task/TaskForm';
 import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
+import { filterByQuery } from '../utils/helpers';
 
 export default function TaskView() {
   const { currentProject, showToast } = useApp();
@@ -15,6 +16,7 @@ export default function TaskView() {
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'list'
+  const [searchQuery, setSearchQuery] = useState('');
   const loadIdRef = useRef(0);
 
   useEffect(() => {
@@ -167,11 +169,12 @@ export default function TaskView() {
     );
   }
 
+  const visibleTasks = filterByQuery(tasks, searchQuery);
   const tasksByStatus = {
-    todo: tasks.filter(t => t.status === 'todo'),
-    in_progress: tasks.filter(t => t.status === 'in_progress'),
-    done: tasks.filter(t => t.status === 'done'),
-    blocked: tasks.filter(t => t.status === 'blocked')
+    todo: visibleTasks.filter(t => t.status === 'todo'),
+    in_progress: visibleTasks.filter(t => t.status === 'in_progress'),
+    done: visibleTasks.filter(t => t.status === 'done'),
+    blocked: visibleTasks.filter(t => t.status === 'blocked')
   };
 
   return (
@@ -198,6 +201,13 @@ export default function TaskView() {
               List
             </button>
           </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks..."
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           <button onClick={handleCreate} className="btn-primary">
             + Add Task
           </button>
@@ -296,7 +306,7 @@ export default function TaskView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tasks.map(task => (
+          {visibleTasks.map(task => (
             <TaskCard
               key={task._id}
               task={task}
