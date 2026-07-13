@@ -7,6 +7,7 @@ import FeatureView from '../../pages/FeatureView';
 import TaskView from '../../pages/TaskView';
 import TreeView from '../../pages/TreeView';
 import ActivityView from '../../pages/ActivityView';
+import AdminUsersView from '../../pages/AdminUsersView';
 import EmptyState from '../Common/EmptyState';
 
 export default function MainLayout() {
@@ -14,6 +15,11 @@ export default function MainLayout() {
   const { currentProject } = useApp();
 
   const renderView = () => {
+    // Users management is not project-scoped.
+    if (currentView === 'users') {
+      return <AdminUsersView />;
+    }
+
     if (!currentProject) {
       return (
         <EmptyState

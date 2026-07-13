@@ -93,6 +93,28 @@ export async function register(username, email, password) {
 }
 
 /**
+ * Change the current user's password
+ */
+export async function changePassword(currentPassword, newPassword) {
+  const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ currentPassword, newPassword })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || (data.errors && data.errors.join(', ')) || 'Failed to change password');
+  }
+
+  return data;
+}
+
+/**
  * Logout user
  */
 export function logout() {

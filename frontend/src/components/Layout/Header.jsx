@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../Common/Modal';
+import ChangePasswordModal from '../Common/ChangePasswordModal';
 import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
@@ -11,6 +12,7 @@ export default function Header() {
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(isDark());
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -81,7 +83,16 @@ export default function Header() {
                 <div className="text-sm">
                   <span className="text-gray-600">Logged in as </span>
                   <span className="font-medium text-gray-900">{user.username}</span>
+                  {user.role && (
+                    <span className="ml-1 text-xs text-gray-500">({user.role})</span>
+                  )}
                 </div>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Change Password
+                </button>
                 <button
                   onClick={logout}
                   className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
@@ -138,6 +149,11 @@ export default function Header() {
           </div>
         </form>
       </Modal>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </>
   );
 }

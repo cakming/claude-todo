@@ -30,8 +30,8 @@ export default function RegisterForm({ onSwitchToLogin, onSuccess }) {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters (with upper, lower, and a number)');
       return;
     }
 
@@ -107,7 +107,7 @@ export default function RegisterForm({ onSwitchToLogin, onSuccess }) {
               onChange={handleChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Create a password (min. 6 characters)"
+              placeholder="Create a password (min. 8 characters)"
             />
           </div>
 

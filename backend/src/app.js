@@ -8,7 +8,7 @@ import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.j
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
-import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
+import { authenticate, isAuthEnabled, requireRole } from './middleware/authMiddleware.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -18,6 +18,7 @@ import featureRoutes from './routes/features.js';
 import taskRoutes from './routes/tasks.js';
 import treeRoutes from './routes/tree.js';
 import activityRoutes from './routes/activity.js';
+import adminRoutes from './routes/admin.js';
 
 // Load environment variables
 dotenv.config();
@@ -63,6 +64,9 @@ app.use('/api/auth/register', authLimiter);
 
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
+
+// Admin routes (require the 'admin' role when auth is enabled)
+app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
 // API Routes (protected if AUTH_ENABLED=true)
 app.use('/api/projects', authenticate, projectRoutes);

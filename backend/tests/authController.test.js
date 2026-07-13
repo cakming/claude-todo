@@ -10,6 +10,7 @@ const users = makeCollection([]);
 
 let register;
 let login;
+let changePassword;
 
 before(async () => {
   const mongoPath = fileURLToPath(new URL('../src/config/mongodb.js', import.meta.url));
@@ -19,7 +20,7 @@ before(async () => {
       getProjectCollection: () => users
     }
   });
-  ({ register, login } = await import('../src/controllers/authController.js'));
+  ({ register, login, changePassword } = await import('../src/controllers/authController.js'));
 });
 
 beforeEach(() => {
@@ -114,5 +115,57 @@ test('login rejects an unknown user with 401', async () => {
 test('login rejects missing fields with 400', async () => {
   const res = makeRes();
   await login(req({ username: 'alice' }), res);
+  assert.equal(res.statusCode, 400);
+});
+
+test('the first registered user is admin, later users are members', async () => {
+  const r1 = makeRes();
+  await register(req({ username: 'first', email: 'first@example.com', password: 'Secret12' }), r1);
+  assert.equal(r1.body.data.role, 'admin');
+
+  const r2 = makeRes();
+  await register(req({ username: 'second', email: 'second@example.com', password: 'Secret12' }), r2);
+  assert.equal(r2.body.data.role, 'member');
+});
+
+test('changePassword updates the password with the correct current one', async () => {
+  const reg = makeRes();
+  await register(req({ username: 'alice', email: 'alice@example.com', password: 'Secret12' }), reg);
+  const userId = reg.body.data.userId;
+
+  const res = makeRes();
+  await changePassword(
+    { user: { userId }, body: { currentPassword: 'Secret12', newPassword: 'Brandnew1' } },
+    res
+  );
+  assert.equal(res.statusCode, 200);
+
+  // The new password now logs in.
+  const loginRes = makeRes();
+  await login(req({ username: 'alice', password: 'Brandnew1' }), loginRes);
+  assert.equal(loginRes.statusCode, 200);
+});
+
+test('changePassword rejects a wrong current password with 401', async () => {
+  const reg = makeRes();
+  await register(req({ username: 'alice', email: 'alice@example.com', password: 'Secret12' }), reg);
+
+  const res = makeRes();
+  await changePassword(
+    { user: { userId: reg.body.data.userId }, body: { currentPassword: 'WrongPass1', newPassword: 'Brandnew1' } },
+    res
+  );
+  assert.equal(res.statusCode, 401);
+});
+
+test('changePassword rejects a weak new password with 400', async () => {
+  const reg = makeRes();
+  await register(req({ username: 'alice', email: 'alice@example.com', password: 'Secret12' }), reg);
+
+  const res = makeRes();
+  await changePassword(
+    { user: { userId: reg.body.data.userId }, body: { currentPassword: 'Secret12', newPassword: 'weak' } },
+    res
+  );
   assert.equal(res.statusCode, 400);
 });

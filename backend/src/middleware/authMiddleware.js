@@ -64,6 +64,24 @@ export function authenticate(req, res, next) {
 }
 
 /**
+ * Require the authenticated user to have one of the given roles. In open mode
+ * (auth disabled) it lets everything through, matching the app's other routes.
+ * @param {...string} roles - allowed roles (e.g. 'admin')
+ */
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!isAuthEnabled()) return next();
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: insufficient permissions'
+      });
+    }
+    next();
+  };
+}
+
+/**
  * Optional authentication middleware - authenticates if token present, but doesn't require it
  * @param {Object} req - Express request
  * @param {Object} res - Express response
