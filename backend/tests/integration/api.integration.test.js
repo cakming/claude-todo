@@ -101,6 +101,20 @@ test('completing all tasks propagates status up to the epic (auto-status)', asyn
   assert.equal(epicNode.features[0].status, 'done', 'feature should auto-complete too');
 });
 
+test('projects are isolated: one project cannot see another project\'s epics', async () => {
+  const a = await makeProject('proj_a');
+  const b = await makeProject('proj_b');
+
+  await request(app).post(`/api/${a}/epics`).send({ title: 'Belongs to A' });
+
+  const inA = await request(app).get(`/api/${a}/epics`);
+  const inB = await request(app).get(`/api/${b}/epics`);
+
+  assert.equal(inA.body.data.length, 1);
+  assert.equal(inA.body.data[0].title, 'Belongs to A');
+  assert.equal(inB.body.data.length, 0, 'project B must not see project A data');
+});
+
 test('the activity feed records create actions, newest first', async () => {
   const project = await makeProject();
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import { getEpics, getEpicById, createEpic, updateEpic, deleteEpic } from '../controllers/epicController.js';
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router.get('/', getEpics);
 router.post('/', createEpic);

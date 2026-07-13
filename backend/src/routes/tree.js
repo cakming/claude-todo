@@ -1,7 +1,7 @@
 import express from 'express';
 import { getProjectTree, getEpicTree } from '../controllers/treeController.js';
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router.get('/', getProjectTree);
 router.get('/epics/:id', getEpicTree);

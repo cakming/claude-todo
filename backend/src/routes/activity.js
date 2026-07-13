@@ -1,7 +1,7 @@
 import express from 'express';
 import { getProjectActivity } from '../controllers/activityController.js';
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router.get('/', getProjectActivity);
 
