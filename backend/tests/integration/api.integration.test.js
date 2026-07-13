@@ -152,6 +152,40 @@ test('the activity feed records create actions, newest first', async () => {
   assert.equal(res.body.data[0].item_type, 'feature', 'newest entry first');
 });
 
+test('tasks accept and return a due_date', async () => {
+  const project = await makeProject('due');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const task = await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T', due_date: '2026-12-31' });
+
+  assert.equal(task.body.data.due_date, '2026-12-31');
+});
+
+test('export then import copies a project into another', async () => {
+  const src = await makeProject('src');
+  const epic = await request(app).post(`/api/${src}/epics`).send({ title: 'Exported Epic' });
+  await request(app)
+    .post(`/api/${src}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'Exported Feature' });
+
+  const exported = await request(app).get(`/api/${src}/export`);
+  assert.equal(exported.status, 200);
+  assert.equal(exported.body.data.length, 2);
+
+  const dst = await makeProject('dst');
+  const imported = await request(app).post(`/api/${dst}/import`).send({ data: exported.body.data });
+  assert.equal(imported.status, 200);
+  assert.equal(imported.body.imported, 2);
+
+  const epicsInDst = await request(app).get(`/api/${dst}/epics`);
+  assert.equal(epicsInDst.body.data.length, 1);
+  assert.equal(epicsInDst.body.data[0].title, 'Exported Epic');
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

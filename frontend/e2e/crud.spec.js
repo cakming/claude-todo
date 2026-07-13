@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject, createEpic, createFeature, createTask, cardMenuAction, resetDb } from './helpers.js';
+import { createProject, createEpic, createFeature, createTask, cardMenuAction, resetDb, clickUntil } from './helpers.js';
 
 test.beforeEach(async ({ request }) => {
   await resetDb(request);
@@ -152,6 +152,54 @@ test('epics list paginates with a Load more button', async ({ page, request }) =
   await loadMore.click();
   await expect(page.locator('.card')).toHaveCount(11);
   await expect(loadMore).toHaveCount(0);
+});
+
+test('a task shows its due date and flags overdue', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Due Epic');
+  await createFeature(page, 'Due Epic', 'Due Feature');
+
+  await clickUntil(page, '✅ Tasks', () => page.getByRole('button', { name: 'Create First Task' }));
+  await clickUntil(page, 'Create First Task', () => page.getByRole('heading', { name: 'Create New Task' }));
+  const featSel = page.locator('select').filter({ has: page.getByRole('option', { name: 'Select a feature' }) });
+  await featSel.selectOption({ label: 'Due Epic / Due Feature' });
+  await page.getByPlaceholder('Add item to cart API').fill('Task with due');
+  await page.locator('input[type="date"]').fill('2020-01-01'); // in the past -> overdue
+  await page.getByRole('button', { name: 'Create Task' }).click();
+
+  const card = page.locator('.card', { hasText: 'Task with due' });
+  await expect(card.getByText(/Due 2020-01-01/)).toBeVisible();
+  await expect(card.getByText(/overdue/)).toBeVisible();
+});
+
+test('export then import round-trips a project', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Portable Epic');
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export' }).click()
+  ]);
+  const filePath = await download.path();
+
+  // New, empty project, then import the exported file into it.
+  await createProject(page);
+  await page.locator('input[type="file"]').setInputFiles(filePath);
+
+  // Import replaces contents and pushes a realtime update -> the epic appears.
+  await expect(page.getByRole('heading', { name: /Portable Epic/ })).toBeVisible();
+});
+
+test('number keys switch views', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+
+  await page.keyboard.press('3');
+  await expect(page.getByRole('heading', { name: 'No Tasks Yet' })).toBeVisible();
+  await page.keyboard.press('1');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
 });
 
 test('tree view renders the full hierarchy', async ({ page }) => {

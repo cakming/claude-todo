@@ -1,18 +1,51 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { exchangeApi } from '../../services/api';
 import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
 import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
-  const { projects, currentProject, setCurrentProject, createProject } = useApp();
+  const { projects, currentProject, setCurrentProject, createProject, showToast } = useApp();
   const { authEnabled, isAuthenticated, user, logout } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(isDark());
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const fileRef = useRef(null);
+
+  const handleExport = async () => {
+    try {
+      const res = await exchangeApi.export(currentProject);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentProject}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Project exported', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const data = Array.isArray(parsed) ? parsed : parsed.data;
+      const res = await exchangeApi.import(currentProject, data);
+      showToast(`Imported ${res.imported} item(s)`, 'success');
+    } catch (err) {
+      showToast(`Import failed: ${err.message}`, 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -75,6 +108,32 @@ export default function Header() {
               >
                 + New Project
               </button>
+
+              {currentProject && (
+                <>
+                  <button
+                    onClick={handleExport}
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Export project to JSON"
+                  >
+                    Export
+                  </button>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Import project from JSON (replaces current contents)"
+                  >
+                    Import
+                  </button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="application/json"
+                    onChange={handleImportFile}
+                    className="hidden"
+                  />
+                </>
+              )}
             </div>
 
             {/* User Info and Logout (only show if auth is enabled) */}

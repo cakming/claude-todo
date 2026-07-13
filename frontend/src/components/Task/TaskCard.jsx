@@ -5,6 +5,11 @@ import { truncate } from '../../utils/helpers';
 export default function TaskCard({ task, featureName, epicName, onEdit, onDelete, onStatusChange }) {
   const [showMenu, setShowMenu] = useState(false);
 
+  const isOverdue =
+    task.due_date &&
+    task.status !== 'done' &&
+    new Date(task.due_date) < new Date(new Date().toDateString());
+
   return (
     <div className="card mb-3 hover:shadow-md transition-shadow relative">
       <div className="absolute top-2 right-2">
@@ -62,6 +67,13 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
         {task.reference_file && (
           <div className="text-xs text-gray-600 mb-2">
             📄 {task.reference_file}
+          </div>
+        )}
+
+        {task.due_date && (
+          <div className={`text-xs mb-2 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+            📅 Due {task.due_date}
+            {isOverdue ? ' (overdue)' : ''}
           </div>
         )}
 

@@ -212,6 +212,25 @@ export const treeApi = {
   }
 };
 
+// Export / Import API
+export const exchangeApi = {
+  export: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/export`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  import: async (project, data) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/import`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify({ data })
+    });
+    return handleResponse(response);
+  }
+};
+
 // Activity API
 export const activityApi = {
   get: async (project) => {

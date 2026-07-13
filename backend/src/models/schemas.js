@@ -129,6 +129,7 @@ export function createTaskDoc(data) {
     uat: data.uat || '',
     status: data.status || 'todo',
     reference_file: data.reference_file || '',
+    due_date: data.due_date || null,
     created_at: new Date(),
     updated_at: new Date()
   };
