@@ -68,6 +68,8 @@ export const epicsApi = {
     const qs = new URLSearchParams();
     if (opts.limit) qs.set('limit', opts.limit);
     if (opts.page) qs.set('page', opts.page);
+    if (opts.search) qs.set('search', opts.search);
+    if (opts.status) qs.set('status', opts.status);
     const query = qs.toString() ? `?${qs}` : '';
     const response = await fetch(`${API_BASE_URL}/${project}/epics${query}`, {
       headers: getAuthHeaders()

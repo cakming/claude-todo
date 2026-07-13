@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
 import { validateEpic, createEpicDoc, DOC_TYPES } from '../models/schemas.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all epics for a project
@@ -10,7 +11,8 @@ export async function getEpics(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-    const query = { type: DOC_TYPES.EPIC };
+    // Optional ?search= (title/desc) and ?status= filters.
+    const query = applyListFilters({ type: DOC_TYPES.EPIC }, req.query);
 
     // Optional pagination: ?limit=N&page=P. Without `limit`, return everything
     // (backward compatible).

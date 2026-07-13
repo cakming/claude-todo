@@ -135,6 +135,57 @@ test('getEpics paginates when a limit is provided', async () => {
   assert.equal(all.body.pagination, undefined);
 });
 
+test('epics can be searched and filtered by status server-side', async () => {
+  const project = await makeProject('searchable');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Payments epic', desc: 'stripe' });
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Search UI', desc: 'filtering' });
+  const blocked = await request(app).post(`/api/${project}/epics`).send({ title: 'Blocked work' });
+  await request(app).put(`/api/${project}/epics/${blocked.body.data._id}`).send({ status: 'blocked' });
+
+  // Text search matches title OR desc, case-insensitively.
+  const byTitle = await request(app).get(`/api/${project}/epics?search=payments`);
+  assert.equal(byTitle.body.data.length, 1);
+  assert.equal(byTitle.body.data[0].title, 'Payments epic');
+
+  const byDesc = await request(app).get(`/api/${project}/epics?search=FILTER`);
+  assert.equal(byDesc.body.data.length, 1);
+  assert.equal(byDesc.body.data[0].title, 'Search UI');
+
+  // Status filter.
+  const onlyBlocked = await request(app).get(`/api/${project}/epics?status=blocked`);
+  assert.equal(onlyBlocked.body.data.length, 1);
+  assert.equal(onlyBlocked.body.data[0].title, 'Blocked work');
+
+  // Search combines with pagination metadata.
+  const paged = await request(app).get(`/api/${project}/epics?search=e&limit=1&page=1`);
+  assert.ok(paged.body.pagination.total >= 1);
+  assert.equal(paged.body.data.length, 1);
+
+  // Regex metacharacters in the term are treated literally, not as a pattern.
+  const literal = await request(app).get(`/api/${project}/epics?search=${encodeURIComponent('.*')}`);
+  assert.equal(literal.body.data.length, 0, 'search term is escaped, not run as a regex');
+});
+
+test('tasks can be filtered by status within a feature', async () => {
+  const project = await makeProject('taskfilter');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const fid = feature.body.data._id;
+  const t1 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'Alpha' });
+  await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'Beta' });
+  await request(app).put(`/api/${project}/tasks/${t1.body.data._id}`).send({ status: 'done' });
+
+  const done = await request(app).get(`/api/${project}/tasks/by-feature/${fid}?status=done`);
+  assert.equal(done.body.data.length, 1);
+  assert.equal(done.body.data[0].title, 'Alpha');
+
+  const search = await request(app).get(`/api/${project}/tasks/by-feature/${fid}?search=bet`);
+  assert.equal(search.body.data.length, 1);
+  assert.equal(search.body.data[0].title, 'Beta');
+});
+
 test('the activity feed records create actions, newest first', async () => {
   const project = await makeProject();
 

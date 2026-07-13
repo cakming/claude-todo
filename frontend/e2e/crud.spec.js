@@ -58,6 +58,24 @@ test('search filters the epic list', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Searchable Epic/ })).toBeVisible();
 });
 
+test('search reaches epics beyond the first page (server-side)', async ({ page, request }) => {
+  // Seed 12 epics; only the first 9 are loaded initially. A client-side filter
+  // would miss "Epic 12" — server-side search must find it.
+  await request.post('http://localhost:3001/api/projects', { data: { name: 'srv_search' } });
+  for (let i = 1; i <= 12; i++) {
+    await request.post('http://localhost:3001/api/srv_search/epics', {
+      data: { title: `Epic ${String(i).padStart(2, '0')}` }
+    });
+  }
+
+  await page.goto('/');
+  await expect(page.locator('.card')).toHaveCount(9); // first page only
+
+  await page.getByPlaceholder('Search epics...').fill('Epic 12');
+  await expect(page.getByRole('heading', { name: /Epic 12/ })).toBeVisible();
+  await expect(page.locator('.card')).toHaveCount(1);
+});
+
 test('dragging a task to the Done column changes its status', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

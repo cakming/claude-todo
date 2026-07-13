@@ -3,6 +3,7 @@ import { getProjectCollection } from '../config/mongodb.js';
 import { validateFeature, createFeatureDoc, DOC_TYPES } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all features for an epic
@@ -12,10 +13,11 @@ export async function getFeaturesByEpic(req, res) {
     const { project, epicId } = req.params;
     const collection = getProjectCollection(project);
 
-    const features = await collection.find({
-      type: DOC_TYPES.FEATURE,
-      epic_id: new ObjectId(epicId)
-    }).toArray();
+    const query = applyListFilters(
+      { type: DOC_TYPES.FEATURE, epic_id: new ObjectId(epicId) },
+      req.query
+    );
+    const features = await collection.find(query).toArray();
 
     res.json({
       success: true,

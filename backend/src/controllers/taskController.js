@@ -3,6 +3,7 @@ import { getProjectCollection } from '../config/mongodb.js';
 import { validateTask, createTaskDoc, DOC_TYPES, ITEM_STATUS } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all tasks for a feature
@@ -12,10 +13,11 @@ export async function getTasksByFeature(req, res) {
     const { project, featureId } = req.params;
     const collection = getProjectCollection(project);
 
-    const tasks = await collection.find({
-      type: DOC_TYPES.TASK,
-      feature_id: new ObjectId(featureId)
-    }).toArray();
+    const query = applyListFilters(
+      { type: DOC_TYPES.TASK, feature_id: new ObjectId(featureId) },
+      req.query
+    );
+    const tasks = await collection.find(query).toArray();
 
     res.json({
       success: true,

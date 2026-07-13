@@ -6,7 +6,7 @@ import EpicForm from '../components/Epic/EpicForm';
 import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
-import { calculateProgress, filterByQuery } from '../utils/helpers';
+import { calculateProgress } from '../utils/helpers';
 
 export default function EpicView() {
   const { currentProject, showToast, refreshTick } = useApp();
@@ -22,12 +22,17 @@ export default function EpicView() {
 
   const PAGE_SIZE = 9;
 
+  // Load on project change and whenever the search term changes. Typing is
+  // debounced; server-side search means results span all pages, not just the
+  // ones already loaded.
   useEffect(() => {
-    if (currentProject) {
+    if (!currentProject) return;
+    const handle = setTimeout(() => {
       pageCountRef.current = 1;
       loadEpics();
-    }
-  }, [currentProject]);
+    }, searchQuery ? 300 : 0);
+    return () => clearTimeout(handle);
+  }, [currentProject, searchQuery]);
 
   // Background refresh on the shared tick (no spinner, and not while editing).
   useEffect(() => {
@@ -55,7 +60,11 @@ export default function EpicView() {
       if (!silent && !more) setLoading(true);
       const page = more ? pageCountRef.current + 1 : 1;
       const limit = more ? PAGE_SIZE : PAGE_SIZE * pageCountRef.current;
-      const response = await epicsApi.getAll(currentProject, { limit, page });
+      const response = await epicsApi.getAll(currentProject, {
+        limit,
+        page,
+        search: searchQuery || undefined
+      });
       const epicsWithProgress = await withProgress(response.data);
 
       if (loadId !== loadIdRef.current) return; // superseded
@@ -116,9 +125,12 @@ export default function EpicView() {
     return <Loading message="Loading epics..." />;
   }
 
+  // A brand-new project (no epics and no active search) gets the big empty state.
+  const isEmptyProject = epics.length === 0 && !searchQuery;
+
   return (
     <div>
-      {epics.length === 0 ? (
+      {isEmptyProject ? (
         <EmptyState
           icon="📊"
           title="No Epics Yet"
@@ -152,11 +164,11 @@ export default function EpicView() {
             </div>
           </div>
 
-          {filterByQuery(epics, searchQuery).length === 0 ? (
+          {epics.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No epics match "{searchQuery}".</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filterByQuery(epics, searchQuery).map(epic => (
+              {epics.map(epic => (
                 <EpicCard
                   key={epic._id}
                   epic={epic}
@@ -168,7 +180,7 @@ export default function EpicView() {
             </div>
           )}
 
-          {hasMore && !searchQuery && (
+          {hasMore && (
             <div className="flex justify-center mt-6">
               <button onClick={() => loadEpics({ more: true })} className="btn-secondary">
                 Load more
