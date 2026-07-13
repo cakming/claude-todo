@@ -26,6 +26,9 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
       <div className="absolute top-2 right-2">
         <button
           onClick={() => setShowMenu(!showMenu)}
+          aria-label={`Actions for ${task.title}`}
+          aria-haspopup="menu"
+          aria-expanded={showMenu}
           className="text-gray-400 hover:text-gray-600"
         >
           ⋯

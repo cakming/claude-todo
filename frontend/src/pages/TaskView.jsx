@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -25,12 +26,14 @@ const KANBAN_COLUMNS = [
 ];
 
 // A Kanban column that accepts dropped task cards.
-function DroppableColumn({ id, children }) {
+function DroppableColumn({ id, label, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
       data-testid={`column-${id}`}
+      role="list"
+      aria-label={label ? `${label} tasks` : undefined}
       className={`space-y-3 min-h-[80px] rounded-lg transition-colors ${
         isOver ? 'ring-2 ring-blue-400 bg-blue-50/40' : ''
       }`}
@@ -42,13 +45,20 @@ function DroppableColumn({ id, children }) {
 
 // A draggable wrapper around a task card. An 8px activation distance keeps the
 // card's status <select> and menu clickable.
-function DraggableTask({ id, children }) {
+function DraggableTask({ id, label, children }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.5 : 1 }
     : undefined;
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      aria-roledescription="Draggable task"
+      aria-label={label}
+      {...listeners}
+      {...attributes}
+    >
       {children}
     </div>
   );
@@ -218,7 +228,12 @@ export default function TaskView() {
   };
 
   // Require a small drag distance so clicks on the card's controls still work.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // The KeyboardSensor lets keyboard users pick up a card (Space) and move it
+  // between columns with the arrow keys.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -347,9 +362,9 @@ export default function TaskView() {
                     {col.label} ({tasksByStatus[col.id].length})
                   </h3>
                 </div>
-                <DroppableColumn id={col.id}>
+                <DroppableColumn id={col.id} label={col.label}>
                   {tasksByStatus[col.id].map(task => (
-                    <DraggableTask key={task._id} id={task._id}>
+                    <DraggableTask key={task._id} id={task._id} label={`${task.title} (${col.label})`}>
                       <TaskCard
                         task={task}
                         featureName={task.featureName}

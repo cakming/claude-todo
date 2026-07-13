@@ -43,4 +43,49 @@ describe('Modal', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  test('exposes a labelled dialog role and an accessible close button', () => {
+    render(
+      <Modal isOpen onClose={() => {}} title="Accessible Modal">
+        <p>b</p>
+      </Modal>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // The dialog is labelled by its title.
+    expect(dialog).toHaveAccessibleName('Accessible Modal');
+    expect(screen.getByRole('button', { name: 'Close dialog' })).toBeInTheDocument();
+  });
+
+  test('moves focus into the dialog when opened', () => {
+    render(
+      <Modal isOpen onClose={() => {}} title="Focus">
+        <button>Inside</button>
+      </Modal>
+    );
+    // Focus lands on the first focusable element within the dialog.
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+  });
+
+  test('restores focus to the trigger when closed', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    expect(trigger).toHaveFocus();
+
+    const { rerender } = render(
+      <Modal isOpen onClose={() => {}} title="Restore">
+        <button>Inside</button>
+      </Modal>
+    );
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+
+    rerender(
+      <Modal isOpen={false} onClose={() => {}} title="Restore">
+        <button>Inside</button>
+      </Modal>
+    );
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
 });
