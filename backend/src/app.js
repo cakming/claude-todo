@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB, closeDB } from './config/mongodb.js';
+import rateLimit from 'express-rate-limit';
+import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
 import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
@@ -13,6 +14,7 @@ import epicRoutes from './routes/epics.js';
 import featureRoutes from './routes/features.js';
 import taskRoutes from './routes/tasks.js';
 import treeRoutes from './routes/tree.js';
+import activityRoutes from './routes/activity.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,19 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Rate limit auth endpoints to slow down brute-force / credential-stuffing.
+// Disabled under tests/E2E so suites aren't throttled.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts, please try again later.' },
+  skip: () => process.env.E2E_TEST === 'true' || process.env.NODE_ENV === 'test'
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
 
@@ -54,6 +69,21 @@ app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
 app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
 app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
+app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
+
+// Test-only endpoint to reset the database between E2E tests. Gated behind
+// E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs
+// sets it). Registered before the 404 handler so it is reachable.
+if (process.env.E2E_TEST === 'true') {
+  app.post('/__test__/reset', async (req, res) => {
+    try {
+      await getDB().dropDatabase();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+}
 
 // Error handling
 app.use(notFoundHandler);
@@ -64,6 +94,9 @@ async function startServer() {
   try {
     // Connect to MongoDB
     await connectDB();
+
+    // Ensure unique indexes on the users collection (safe if they already exist)
+    await createUserIndexes();
 
     // Start listening
     app.listen(PORT, () => {
@@ -94,7 +127,10 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Start the server
-startServer();
+// Start the server (skipped under tests, which import `app` and manage their
+// own database connection).
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 export default app;

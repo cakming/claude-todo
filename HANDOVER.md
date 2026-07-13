@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Last Updated:** 2026-06-28  
 **Project Status:** ✅ Production Ready  
-**Git Branch:** `claude/vibe-todo-manager-setup-011CV3hUYzgaAqXRsyTbTmmF`
+**Git Branch:** `main`
 
 ---
 
@@ -45,7 +45,7 @@
 
 ### Tech Stack
 
-- **Frontend:** React 18 + Vite + Tailwind CSS
+- **Frontend:** React 19 + Vite + Tailwind CSS 3
 - **Backend:** Node.js + Express 4 + MongoDB Native Driver
 - **MCP Server:** TypeScript + MCP SDK
 - **Authentication:** JWT + bcrypt
@@ -215,7 +215,7 @@ Claude: *uses mark-task-done tool, auto-updates parent feature*
 
 ### 5. Git & Version Control (100%)
 
-- ✅ All code committed to branch: `claude/vibe-todo-manager-setup-011CV3hUYzgaAqXRsyTbTmmF`
+- ✅ All code committed to branch: `main`
 - ✅ Clean commit history with descriptive messages
 - ✅ `.gitignore` files configured (node_modules, .env, build artifacts)
 - ✅ All changes pushed to remote
@@ -235,33 +235,74 @@ Claude: *uses mark-task-done tool, auto-updates parent feature*
 ### High Priority (Should Do)
 
 #### 1. **Testing** ⚠️ IMPORTANT
-**Status:** Not implemented  
+**Status:** In progress — backend unit tests added  
 **Impact:** High  
 **Effort:** Medium
 
-**What's needed:**
-- [ ] Backend unit tests (controllers, utils)
-- [ ] API integration tests (endpoints)
-- [ ] Frontend component tests (React Testing Library)
-- [ ] E2E tests (Playwright/Cypress)
+**What's done:**
+- [x] Backend unit tests for the auto-status/progress algorithm (`backend/tests/statusController.test.js`)
+- [x] Backend tests for authentication register/login (`backend/tests/authController.test.js`)
+- [x] Backend tests for cascade delete of epics/features (`backend/tests/cascadeDelete.test.js`)
 
-**Suggested approach:**
+These run via `npm test` in `backend/` using Node's built-in test runner with
+an in-memory fake collection — no MongoDB required.
+
+**Also covered:** task CRUD + auto-status trigger (`taskController.test.js`),
+project create/delete + name sanitization (`projectController.test.js`), tree
+building (`treeController.test.js`), the `AUTH_ENABLED` auth-guard middleware
+(`authMiddleware.test.js`), and JWT generate/verify/decode (`jwt.test.js`).
+Every backend controller plus the auth middleware now has unit coverage
+(**48 tests**, `cd backend && npm test`).
+
+**Frontend:** Vitest + React Testing Library cover the API/auth service layers,
+the `AppContext`/`AuthContext` providers, the `helpers` utilities, and UI
+components (StatusBadge, ProgressBar, Modal, EpicForm, EpicCard) —
+`cd frontend && npm test`.
+
+**Integration:** Full HTTP tests against an ephemeral MongoDB
+(`mongodb-memory-server` + Supertest) exercise real routing, middleware,
+controllers, and driver queries — health, project sanitization, 404s,
+validation, end-to-end auto-status, and cascade delete
+(`cd backend && npm run test:integration`).
+
+**E2E:** Playwright drives the whole stack (Vite dev + an ephemeral-MongoDB
+backend, Chromium) — `cd frontend && npm run test:e2e`. Flows:
+- smoke: create project → epic → feature → task → mark done → auto-status
+- edit an epic's title
+- delete an epic and verify the cascade empties the project
+- tree view renders the full hierarchy
+
+Chromium is pre-installed; the backend is launched by
+`backend/scripts/e2e-server.mjs`. Tests isolate via a DB reset before each
+(`POST /__test__/reset`, gated behind `E2E_TEST` — never enabled in prod).
+
+> Note: E2E caught two real bugs. (1) The Epic/Feature/Task views returned their
+> empty state *before* rendering the create-modal, so the "Create First …"
+> buttons did nothing on a new project — fixed by always rendering the modal.
+> (2) A stale-response race: switching projects while `loadEpics` is in flight
+> can render the previous project's epics under the new one. Worked around in
+> tests via per-test DB reset; the app-side guard is still open (see below).
+
+**What's still needed:**
+- [ ] Guard `loadEpics`/`loadData` against out-of-order responses (stale-render race)
+- [ ] More E2E flows (auth-enabled login) if desired
+
+**Suggested approach for the remaining work:**
 ```bash
-# Backend
+# Backend integration tests (real DB)
 cd backend
-npm install --save-dev jest supertest
-# Create: backend/tests/controllers/
+npm install --save-dev supertest
 # Create: backend/tests/integration/
 
-# Frontend  
+# Frontend
 cd frontend
 npm install --save-dev @testing-library/react vitest
 # Create: frontend/src/__tests__/
 ```
 
-**Priority files to test first:**
-1. `backend/src/controllers/statusController.js` - Auto-status algorithm
-2. `backend/src/controllers/authController.js` - Authentication logic
+**Priority files to test next:**
+1. ~~`backend/src/controllers/statusController.js` - Auto-status algorithm~~ ✅ done
+2. ~~`backend/src/controllers/authController.js` - Authentication logic~~ ✅ done
 3. `frontend/src/context/AppContext.jsx` - State management
 4. `frontend/src/context/AuthContext.jsx` - Auth state
 
@@ -461,17 +502,21 @@ module.exports = {
 
 ## ⚠️ Technical Debt
 
-### 1. **No Tests** ⚠️ CRITICAL
-**Location:** Entire codebase  
-**Issue:** Zero test coverage  
-**Risk:** High - bugs can slip into production  
-**Effort to fix:** High (2-3 days)  
+### 1. **Partial Test Coverage** ⚠️ IMPORTANT
+**Location:** Backend has unit tests; frontend has none  
+**Issue:** Backend critical paths (auto-status, auth, cascade delete) are now
+covered by `backend/tests/`; integration, frontend, and E2E tests are still missing  
+**Risk:** Medium - frontend and endpoint wiring are still untested  
+**Effort to fix:** Medium (1-2 days for the remaining layers)  
+
+**Done:**
+- [x] Unit tests for critical functions (auto-status algorithm, auth, cascade delete)
 
 **Action Items:**
-- Write unit tests for critical functions (auto-status algorithm)
-- Add integration tests for API endpoints
+- Add integration tests for API endpoints (Supertest + ephemeral MongoDB)
+- Add frontend component tests (React Testing Library / Vitest)
 - Add E2E tests for main user flows
-- Set up CI/CD pipeline with test runs
+- Set up CI/CD pipeline with test runs (run `cd backend && npm test`)
 
 ### 2. **Hardcoded Values**
 **Location:** Multiple files  
@@ -981,7 +1026,7 @@ vibe_todo_manager/
   "type": "epic",
   "title": "User Authentication System",
   "description": "Complete auth flow",
-  "status": "in-progress",
+  "status": "in_progress",
   "progress": 67,
   "created_at": ISODate("..."),
   "updated_at": ISODate("...")
@@ -1031,7 +1076,7 @@ vibe_todo_manager/
 ```bash
 git clone <repository-url>
 cd claude-todo
-git checkout claude/vibe-todo-manager-setup-011CV3hUYzgaAqXRsyTbTmmF
+git checkout main
 ```
 
 #### 2. Setup MongoDB
@@ -1557,7 +1602,7 @@ export DB_NAME=vibe_todo_manager
 **Valid status values (DO NOT CHANGE):**
 - `"planning"` - Planning phase
 - `"todo"` - Ready to start
-- `"in-progress"` - Currently working
+- `"in_progress"` - Currently working
 - `"done"` - Completed
 - `"blocked"` - Blocked by external dependency
 
@@ -1738,9 +1783,12 @@ export DB_NAME=vibe_todo_manager
 
 ## 🧪 Testing Strategy
 
-### Current State: ⚠️ NO TESTS
+### Current State: ⚠️ BACKEND UNIT TESTS ONLY
 
-**Critical:** This is the biggest gap in the project.
+The backend has unit tests for its critical paths (auto-status/progress, auth
+register/login, cascade delete) in `backend/tests/`, runnable with
+`cd backend && npm test` (Node's built-in runner, no DB needed). Integration
+tests, frontend tests, and E2E tests are still missing — that's the remaining gap.
 
 ### Recommended Testing Approach
 
@@ -2246,10 +2294,11 @@ function sanitizeProjectName(name) {
 
 **MUST use exact values:**
 - ✅ `"planning"` 
-- ✅ `"in-progress"` (with hyphen!)
+- ✅ `"in_progress"` (with underscore!)
 - ✅ `"done"`
 - ❌ `"Planning"` (capital P)
-- ❌ `"in progress"` (space instead of hyphen)
+- ❌ `"in-progress"` (hyphen instead of underscore)
+- ❌ `"in progress"` (space instead of underscore)
 
 **Why:** Auto-status algorithm checks for exact `"done"` value.
 
@@ -2542,7 +2591,7 @@ npm run build
 ### Project Information
 
 **Repository:** <your-github-repo-url>  
-**Branch:** `claude/vibe-todo-manager-setup-011CV3hUYzgaAqXRsyTbTmmF`  
+**Branch:** `main`  
 **License:** MIT  
 **Created:** 2026-06-28
 

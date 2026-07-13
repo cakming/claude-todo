@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
 import { validateTask, createTaskDoc, DOC_TYPES } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
+import { logActivity } from '../utils/activity.js';
 
 /**
  * Get all tasks for a feature
@@ -95,6 +96,7 @@ export async function createTask(req, res) {
 
     const taskDoc = createTaskDoc(taskData);
     const result = await collection.insertOne(taskDoc);
+    await logActivity(project, { action: 'created', item_type: 'task', title: taskDoc.title });
 
     res.status(201).json({
       success: true,
@@ -150,6 +152,8 @@ export async function updateTask(req, res) {
       await updateParentStatus(collection, currentTask.feature_id, DOC_TYPES.FEATURE);
     }
 
+    await logActivity(project, { action: 'updated', item_type: 'task', title: result?.title });
+
     res.json({
       success: true,
       data: result
@@ -194,6 +198,8 @@ export async function deleteTask(req, res) {
 
     // Update parent feature status
     await updateParentStatus(collection, task.feature_id, DOC_TYPES.FEATURE);
+
+    await logActivity(project, { action: 'deleted', item_type: 'task', title: task.title });
 
     res.json({
       success: true,

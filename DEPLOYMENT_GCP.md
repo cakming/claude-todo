@@ -408,7 +408,7 @@ cd /var/www/vibe-todo
 git clone https://github.com/your-username/claude-todo.git .
 
 # Checkout correct branch
-git checkout claude/vibe-todo-manager-setup-011CV3hUYzgaAqXRsyTbTmmF
+git checkout main
 ```
 
 ### 2. Install Backend Dependencies

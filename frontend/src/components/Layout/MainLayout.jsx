@@ -6,6 +6,7 @@ import EpicView from '../../pages/EpicView';
 import FeatureView from '../../pages/FeatureView';
 import TaskView from '../../pages/TaskView';
 import TreeView from '../../pages/TreeView';
+import ActivityView from '../../pages/ActivityView';
 import EmptyState from '../Common/EmptyState';
 
 export default function MainLayout() {
@@ -32,6 +33,8 @@ export default function MainLayout() {
         return <TaskView />;
       case 'tree':
         return <TreeView />;
+      case 'activity':
+        return <ActivityView />;
       default:
         return <EpicView />;
     }

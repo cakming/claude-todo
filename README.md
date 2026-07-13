@@ -413,6 +413,19 @@ cd frontend
 npm run dev
 ```
 
+### Running Tests
+
+**Backend:**
+```bash
+cd backend
+npm test
+```
+
+The backend suite uses Node's built-in test runner and runs fully offline —
+no MongoDB instance is required (the data layer is faked in-memory). It covers
+the auto-status/progress algorithm, authentication (register/login), and
+cascade deletes.
+
 ### Building for Production
 
 **Frontend:**

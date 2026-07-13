@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
 import { validateEpic, createEpicDoc, DOC_TYPES } from '../models/schemas.js';
+import { logActivity } from '../utils/activity.js';
 
 /**
  * Get all epics for a project
@@ -77,6 +78,7 @@ export async function createEpic(req, res) {
 
     const epicDoc = createEpicDoc(req.body);
     const result = await collection.insertOne(epicDoc);
+    await logActivity(project, { action: 'created', item_type: 'epic', title: epicDoc.title });
 
     res.status(201).json({
       success: true,
@@ -130,6 +132,8 @@ export async function updateEpic(req, res) {
       });
     }
 
+    await logActivity(project, { action: 'updated', item_type: 'epic', title: result.title });
+
     res.json({
       success: true,
       data: result
@@ -152,6 +156,9 @@ export async function deleteEpic(req, res) {
     const collection = getProjectCollection(project);
 
     const epicId = new ObjectId(id);
+
+    // Capture the title before deletion for the activity log.
+    const epicToDelete = await collection.findOne({ _id: epicId, type: DOC_TYPES.EPIC });
 
     // Find all features belonging to this epic
     const features = await collection.find({
@@ -186,6 +193,8 @@ export async function deleteEpic(req, res) {
         error: 'Epic not found'
       });
     }
+
+    await logActivity(project, { action: 'deleted', item_type: 'epic', title: epicToDelete?.title });
 
     res.json({
       success: true,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../Common/Modal';
+import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
   const { projects, currentProject, setCurrentProject, createProject } = useApp();
@@ -9,6 +10,7 @@ export default function Header() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dark, setDark] = useState(isDark());
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -37,6 +39,16 @@ export default function Header() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Dark mode toggle */}
+            <button
+              onClick={() => setDark(toggleTheme())}
+              className="btn-secondary"
+              aria-label="Toggle dark mode"
+              title="Toggle dark mode"
+            >
+              {dark ? '☀️' : '🌙'}
+            </button>
+
             {/* Project Selector */}
             <div className="flex items-center space-x-2">
               <label className="text-sm font-medium text-gray-700">

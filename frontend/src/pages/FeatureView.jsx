@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi, tasksApi } from '../services/api';
 import FeatureCard from '../components/Feature/FeatureCard';
@@ -6,16 +6,18 @@ import FeatureForm from '../components/Feature/FeatureForm';
 import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
-import { calculateProgress } from '../utils/helpers';
+import { calculateProgress, filterByQuery } from '../utils/helpers';
 
 export default function FeatureView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [features, setFeatures] = useState([]);
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
   const [selectedEpicFilter, setSelectedEpicFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -23,10 +25,18 @@ export default function FeatureView() {
     }
   }, [currentProject]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (currentProject && refreshTick > 0 && !showModal) {
+      loadData({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadData = async ({ silent } = {}) => {
+    const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const epicsResponse = await epicsApi.getAll(currentProject);
+      if (loadId !== loadIdRef.current) return;
       setEpics(epicsResponse.data);
 
       // Load all features for all epics
@@ -58,11 +68,12 @@ export default function FeatureView() {
         }
       }
 
+      if (loadId !== loadIdRef.current) return;
       setFeatures(allFeatures);
     } catch (error) {
-      showToast('Failed to load features', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load features', 'error');
     } finally {
-      setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 
@@ -107,75 +118,83 @@ export default function FeatureView() {
     }
   };
 
-  const filteredFeatures = selectedEpicFilter === 'all'
+  const byEpic = selectedEpicFilter === 'all'
     ? features
     : features.filter(f => f.epic_id === selectedEpicFilter);
+  const filteredFeatures = filterByQuery(byEpic, searchQuery);
 
   if (loading) {
     return <Loading message="Loading features..." />;
   }
 
-  if (features.length === 0) {
-    return (
-      <EmptyState
-        icon="✨"
-        title="No Features Yet"
-        message="Create your first feature under an epic. Features contain tasks."
-        action={
-          epics.length > 0 ? (
-            <button onClick={handleCreate} className="btn-primary">
-              Create First Feature
-            </button>
-          ) : (
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">You need to create an epic first!</p>
-            </div>
-          )
-        }
-      />
-    );
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Features</h2>
-          <p className="text-gray-600 mt-1">
-            Feature implementations organized by epic
-          </p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={selectedEpicFilter}
-            onChange={(e) => setSelectedEpicFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Epics</option>
-            {epics.map(epic => (
-              <option key={epic._id} value={epic._id}>
-                {epic.title}
-              </option>
-            ))}
-          </select>
-          <button onClick={handleCreate} className="btn-primary">
-            + Add Feature
-          </button>
-        </div>
-      </div>
+      {features.length === 0 ? (
+        <EmptyState
+          icon="✨"
+          title="No Features Yet"
+          message="Create your first feature under an epic. Features contain tasks."
+          action={
+            epics.length > 0 ? (
+              <button onClick={handleCreate} className="btn-primary">
+                Create First Feature
+              </button>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">You need to create an epic first!</p>
+              </div>
+            )
+          }
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Features</h2>
+              <p className="text-gray-600 mt-1">
+                Feature implementations organized by epic
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <select
+                value={selectedEpicFilter}
+                onChange={(e) => setSelectedEpicFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Epics</option>
+                {epics.map(epic => (
+                  <option key={epic._id} value={epic._id}>
+                    {epic.title}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search features..."
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button onClick={handleCreate} className="btn-primary">
+                + Add Feature
+              </button>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredFeatures.map(feature => (
-          <FeatureCard
-            key={feature._id}
-            feature={feature}
-            epicName={feature.epicName}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExpand={() => {}}
-          />
-        ))}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFeatures.map(feature => (
+              <FeatureCard
+                key={feature._id}
+                feature={feature}
+                epicName={feature.epicName}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onExpand={() => {}}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       <Modal
         isOpen={showModal}

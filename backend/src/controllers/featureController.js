@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
 import { validateFeature, createFeatureDoc, DOC_TYPES } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
+import { logActivity } from '../utils/activity.js';
 
 /**
  * Get all features for an epic
@@ -95,6 +96,7 @@ export async function createFeature(req, res) {
 
     const featureDoc = createFeatureDoc(featureData);
     const result = await collection.insertOne(featureDoc);
+    await logActivity(project, { action: 'created', item_type: 'feature', title: featureDoc.title });
 
     res.status(201).json({
       success: true,
@@ -150,6 +152,8 @@ export async function updateFeature(req, res) {
       await updateParentStatus(collection, currentFeature.epic_id, DOC_TYPES.EPIC);
     }
 
+    await logActivity(project, { action: 'updated', item_type: 'feature', title: result?.title });
+
     res.json({
       success: true,
       data: result
@@ -200,6 +204,8 @@ export async function deleteFeature(req, res) {
 
     // Update parent epic status
     await updateParentStatus(collection, feature.epic_id, DOC_TYPES.EPIC);
+
+    await logActivity(project, { action: 'deleted', item_type: 'feature', title: feature.title });
 
     res.json({
       success: true,

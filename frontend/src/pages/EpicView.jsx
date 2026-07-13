@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi } from '../services/api';
 import EpicCard from '../components/Epic/EpicCard';
@@ -6,15 +6,17 @@ import EpicForm from '../components/Epic/EpicForm';
 import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
-import { calculateProgress } from '../utils/helpers';
+import { calculateProgress, filterByQuery } from '../utils/helpers';
 
 export default function EpicView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEpic, setEditingEpic] = useState(null);
   const [expandedEpic, setExpandedEpic] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -22,9 +24,18 @@ export default function EpicView() {
     }
   }, [currentProject]);
 
-  const loadEpics = async () => {
+  // Background refresh on the shared tick (no spinner, and not while editing).
+  useEffect(() => {
+    if (currentProject && refreshTick > 0 && !showModal) {
+      loadEpics({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadEpics = async ({ silent } = {}) => {
+    // Guard against out-of-order responses when the project changes mid-load.
+    const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await epicsApi.getAll(currentProject);
 
       // Load features for each epic to calculate progress
@@ -40,11 +51,12 @@ export default function EpicView() {
         })
       );
 
+      if (loadId !== loadIdRef.current) return; // a newer load superseded this one
       setEpics(epicsWithProgress);
     } catch (error) {
-      showToast('Failed to load epics', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
     } finally {
-      setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 
@@ -93,46 +105,59 @@ export default function EpicView() {
     return <Loading message="Loading epics..." />;
   }
 
-  if (epics.length === 0) {
-    return (
-      <EmptyState
-        icon="📊"
-        title="No Epics Yet"
-        message="Create your first epic to organize your large body of work. Epics contain features and tasks."
-        action={
-          <button onClick={handleCreate} className="btn-primary">
-            Create First Epic
-          </button>
-        }
-      />
-    );
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Epics</h2>
-          <p className="text-gray-600 mt-1">
-            Large bodies of work organized into features
-          </p>
-        </div>
-        <button onClick={handleCreate} className="btn-primary">
-          + Add Epic
-        </button>
-      </div>
+      {epics.length === 0 ? (
+        <EmptyState
+          icon="📊"
+          title="No Epics Yet"
+          message="Create your first epic to organize your large body of work. Epics contain features and tasks."
+          action={
+            <button onClick={handleCreate} className="btn-primary">
+              Create First Epic
+            </button>
+          }
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Epics</h2>
+              <p className="text-gray-600 mt-1">
+                Large bodies of work organized into features
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search epics..."
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button onClick={handleCreate} className="btn-primary">
+                + Add Epic
+              </button>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {epics.map(epic => (
-          <EpicCard
-            key={epic._id}
-            epic={epic}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExpand={setExpandedEpic}
-          />
-        ))}
-      </div>
+          {filterByQuery(epics, searchQuery).length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No epics match "{searchQuery}".</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filterByQuery(epics, searchQuery).map(epic => (
+                <EpicCard
+                  key={epic._id}
+                  epic={epic}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onExpand={setExpandedEpic}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

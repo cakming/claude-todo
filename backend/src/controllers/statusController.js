@@ -33,9 +33,6 @@ export async function updateParentStatus(collection, parentId, parentType) {
     // Check if all children are done
     const allDone = children.every(child => child.status === 'done');
 
-    // Check if any child is blocked
-    const anyBlocked = children.some(child => child.status === 'blocked');
-
     // Get current parent
     const parent = await collection.findOne({
       _id: parentId,
