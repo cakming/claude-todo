@@ -6,13 +6,13 @@ import EmptyState from '../components/Common/EmptyState';
 import { formatDateTime, getTypeIcon } from '../utils/helpers';
 
 const ACTION_STYLE = {
-  created: 'text-green-700 bg-green-100',
-  updated: 'text-blue-700 bg-blue-100',
-  deleted: 'text-red-700 bg-red-100'
+  created: 'text-green-700 bg-green-100 dark:text-green-200 dark:bg-green-900',
+  updated: 'text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-900',
+  deleted: 'text-red-700 bg-red-100 dark:text-red-200 dark:bg-red-900'
 };
 
 export default function ActivityView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const loadIdRef = useRef(0);
@@ -23,17 +23,23 @@ export default function ActivityView() {
     }
   }, [currentProject]);
 
-  const loadActivity = async () => {
+  useEffect(() => {
+    if (currentProject && refreshTick > 0) {
+      loadActivity({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadActivity = async ({ silent } = {}) => {
     const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await activityApi.get(currentProject);
       if (loadId !== loadIdRef.current) return;
       setActivity(response.data);
     } catch (error) {
-      if (loadId === loadIdRef.current) showToast('Failed to load activity', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load activity', 'error');
     } finally {
-      if (loadId === loadIdRef.current) setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 

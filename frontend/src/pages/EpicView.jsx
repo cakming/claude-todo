@@ -9,7 +9,7 @@ import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress, filterByQuery } from '../utils/helpers';
 
 export default function EpicView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -24,11 +24,18 @@ export default function EpicView() {
     }
   }, [currentProject]);
 
-  const loadEpics = async () => {
+  // Background refresh on the shared tick (no spinner, and not while editing).
+  useEffect(() => {
+    if (currentProject && refreshTick > 0 && !showModal) {
+      loadEpics({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadEpics = async ({ silent } = {}) => {
     // Guard against out-of-order responses when the project changes mid-load.
     const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await epicsApi.getAll(currentProject);
 
       // Load features for each epic to calculate progress
@@ -47,9 +54,9 @@ export default function EpicView() {
       if (loadId !== loadIdRef.current) return; // a newer load superseded this one
       setEpics(epicsWithProgress);
     } catch (error) {
-      if (loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
     } finally {
-      if (loadId === loadIdRef.current) setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 

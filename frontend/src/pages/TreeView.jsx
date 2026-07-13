@@ -6,7 +6,7 @@ import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 
 export default function TreeView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [treeData, setTreeData] = useState([]);
   const [loading, setLoading] = useState(true);
   const loadIdRef = useRef(0);
@@ -17,17 +17,23 @@ export default function TreeView() {
     }
   }, [currentProject]);
 
-  const loadTree = async () => {
+  useEffect(() => {
+    if (currentProject && refreshTick > 0) {
+      loadTree({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadTree = async ({ silent } = {}) => {
     const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await treeApi.getProject(currentProject);
       if (loadId !== loadIdRef.current) return;
       setTreeData(response.data);
     } catch (error) {
-      if (loadId === loadIdRef.current) showToast('Failed to load tree view', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load tree view', 'error');
     } finally {
-      if (loadId === loadIdRef.current) setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 

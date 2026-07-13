@@ -17,10 +17,10 @@ import EmptyState from '../components/Common/EmptyState';
 import { filterByQuery } from '../utils/helpers';
 
 const KANBAN_COLUMNS = [
-  { id: 'todo', label: 'To Do', header: 'bg-blue-50 text-blue-900' },
-  { id: 'in_progress', label: 'In Progress', header: 'bg-yellow-50 text-yellow-900' },
-  { id: 'done', label: 'Done', header: 'bg-green-50 text-green-900' },
-  { id: 'blocked', label: 'Blocked', header: 'bg-red-50 text-red-900' }
+  { id: 'todo', label: 'To Do', header: 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-200' },
+  { id: 'in_progress', label: 'In Progress', header: 'bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200' },
+  { id: 'done', label: 'Done', header: 'bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-200' },
+  { id: 'blocked', label: 'Blocked', header: 'bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200' }
 ];
 
 // A Kanban column that accepts dropped task cards.
@@ -54,7 +54,7 @@ function DraggableTask({ id, children }) {
 }
 
 export default function TaskView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [tasks, setTasks] = useState([]);
   const [features, setFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,10 +70,17 @@ export default function TaskView() {
     }
   }, [currentProject]);
 
-  const loadData = async () => {
+  // Background refresh on the shared tick (skip while a modal is open).
+  useEffect(() => {
+    if (currentProject && refreshTick > 0 && !showModal) {
+      loadData({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadData = async ({ silent } = {}) => {
     const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const epicsResponse = await epicsApi.getAll(currentProject);
 
       const allFeatures = [];
@@ -111,9 +118,9 @@ export default function TaskView() {
       setFeatures(allFeatures);
       setTasks(allTasks);
     } catch (error) {
-      if (loadId === loadIdRef.current) showToast('Failed to load tasks', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load tasks', 'error');
     } finally {
-      if (loadId === loadIdRef.current) setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 

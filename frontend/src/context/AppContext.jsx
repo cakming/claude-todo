@@ -9,10 +9,18 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Load projects on mount
   useEffect(() => {
     loadProjects();
+  }, []);
+
+  // Drive periodic background refreshes (near-real-time updates across tabs).
+  // Views watch `refreshTick` and reload silently (without a loading spinner).
+  useEffect(() => {
+    const id = setInterval(() => setRefreshTick((t) => t + 1), 10000);
+    return () => clearInterval(id);
   }, []);
 
   const loadProjects = async () => {
@@ -91,7 +99,8 @@ export function AppProvider({ children }) {
     deleteProject,
     showToast,
     toasts,
-    removeToast
+    removeToast,
+    refreshTick
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

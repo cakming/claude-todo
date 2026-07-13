@@ -9,7 +9,7 @@ import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress, filterByQuery } from '../utils/helpers';
 
 export default function FeatureView() {
-  const { currentProject, showToast } = useApp();
+  const { currentProject, showToast, refreshTick } = useApp();
   const [features, setFeatures] = useState([]);
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,10 +25,16 @@ export default function FeatureView() {
     }
   }, [currentProject]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (currentProject && refreshTick > 0 && !showModal) {
+      loadData({ silent: true });
+    }
+  }, [refreshTick]);
+
+  const loadData = async ({ silent } = {}) => {
     const loadId = ++loadIdRef.current;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const epicsResponse = await epicsApi.getAll(currentProject);
       if (loadId !== loadIdRef.current) return;
       setEpics(epicsResponse.data);
@@ -65,9 +71,9 @@ export default function FeatureView() {
       if (loadId !== loadIdRef.current) return;
       setFeatures(allFeatures);
     } catch (error) {
-      if (loadId === loadIdRef.current) showToast('Failed to load features', 'error');
+      if (!silent && loadId === loadIdRef.current) showToast('Failed to load features', 'error');
     } finally {
-      if (loadId === loadIdRef.current) setLoading(false);
+      if (!silent && loadId === loadIdRef.current) setLoading(false);
     }
   };
 
