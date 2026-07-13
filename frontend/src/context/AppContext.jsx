@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { projectsApi } from '../services/api';
 
@@ -19,6 +19,7 @@ export function AppProvider({ children }) {
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [refreshTick, setRefreshTick] = useState(0);
+  const toastIdRef = useRef(0);
 
   // Load projects on mount
   useEffect(() => {
@@ -88,8 +89,9 @@ export function AppProvider({ children }) {
   };
 
   const showToast = (message, type = 'info') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    const id = ++toastIdRef.current;
+    // Keep at most the 4 most recent toasts so they can't pile up and cover the UI.
+    setToasts(prev => [...prev, { id, message, type }].slice(-4));
 
     // Auto-remove toast after 5 seconds
     setTimeout(() => {
