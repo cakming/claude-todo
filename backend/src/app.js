@@ -3,7 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
 import { Server as SocketIOServer } from 'socket.io';
+import logger from './utils/logger.js';
 import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -34,11 +36,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+// Structured request logging. Health checks and the E2E reset endpoint are
+// noise, so we don't auto-log them.
+app.use(pinoHttp({
+  logger,
+  autoLogging: {
+    ignore: (req) => req.url === '/health' || req.url === '/__test__/reset'
+  }
+}));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -120,33 +125,25 @@ async function startServer() {
 
     // Start listening
     server.listen(PORT, () => {
-      console.log(`🚀 Vibe Todo API server running on port ${PORT}`);
-      console.log(`📍 API endpoint: http://localhost:${PORT}`);
-      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔌 Realtime (Socket.IO): enabled`);
-      console.log(`🔐 Authentication: ${isAuthEnabled() ? 'ENABLED' : 'DISABLED'}`);
-      if (isAuthEnabled()) {
-        console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/login, /api/auth/register`);
-      }
+      logger.info(
+        { port: PORT, realtime: true, authEnabled: isAuthEnabled() },
+        `🚀 Vibe Todo API server running on port ${PORT}`
+      );
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
   }
 }
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+async function shutdown(signal) {
+  logger.info({ signal }, '🛑 Shutting down gracefully...');
   await closeDB();
   process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  await closeDB();
-  process.exit(0);
-});
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // Start the server (skipped under tests, which import `app` and manage their
 // own database connection).

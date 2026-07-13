@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { reportError } from '../../monitoring';
 
 /**
  * Catches render/runtime errors in the component tree and shows a friendly
@@ -16,6 +17,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('Uncaught error:', error, info);
+    reportError(error, { componentStack: info?.componentStack });
   }
 
   handleReload = () => {
