@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB, closeDB, getDB } from './config/mongodb.js';
+import rateLimit from 'express-rate-limit';
+import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
 import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
@@ -43,6 +44,19 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Rate limit auth endpoints to slow down brute-force / credential-stuffing.
+// Disabled under tests/E2E so suites aren't throttled.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts, please try again later.' },
+  skip: () => process.env.E2E_TEST === 'true' || process.env.NODE_ENV === 'test'
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
 
@@ -78,6 +92,9 @@ async function startServer() {
   try {
     // Connect to MongoDB
     await connectDB();
+
+    // Ensure unique indexes on the users collection (safe if they already exist)
+    await createUserIndexes();
 
     // Start listening
     app.listen(PORT, () => {

@@ -76,6 +76,15 @@ export async function createProjectIndexes(projectName) {
 }
 
 /**
+ * Create indexes for the users collection (unique username & email).
+ */
+export async function createUserIndexes() {
+  const users = getDB().collection('users');
+  await users.createIndex({ username: 1 }, { unique: true });
+  await users.createIndex({ email: 1 }, { unique: true });
+}
+
+/**
  * Close MongoDB connection
  */
 export async function closeDB() {
