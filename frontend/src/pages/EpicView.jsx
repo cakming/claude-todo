@@ -16,10 +16,15 @@ export default function EpicView() {
   const [editingEpic, setEditingEpic] = useState(null);
   const [expandedEpic, setExpandedEpic] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hasMore, setHasMore] = useState(false);
   const loadIdRef = useRef(0);
+  const pageCountRef = useRef(1); // how many pages are currently shown
+
+  const PAGE_SIZE = 9;
 
   useEffect(() => {
     if (currentProject) {
+      pageCountRef.current = 1;
       loadEpics();
     }
   }, [currentProject]);
@@ -31,34 +36,38 @@ export default function EpicView() {
     }
   }, [refreshTick]);
 
-  const loadEpics = async ({ silent } = {}) => {
-    // Guard against out-of-order responses when the project changes mid-load.
+  const withProgress = (epicList) =>
+    Promise.all(
+      epicList.map(async (epic) => {
+        try {
+          const featuresResponse = await featuresApi.getByEpic(currentProject, epic._id);
+          return { ...epic, progress: calculateProgress(featuresResponse.data) };
+        } catch (error) {
+          return { ...epic, progress: { total: 0, completed: 0, percentage: 0 } };
+        }
+      })
+    );
+
+  // `more: true` appends the next page; otherwise (re)loads all shown pages.
+  const loadEpics = async ({ silent, more } = {}) => {
     const loadId = ++loadIdRef.current;
     try {
-      if (!silent) setLoading(true);
-      const response = await epicsApi.getAll(currentProject);
+      if (!silent && !more) setLoading(true);
+      const page = more ? pageCountRef.current + 1 : 1;
+      const limit = more ? PAGE_SIZE : PAGE_SIZE * pageCountRef.current;
+      const response = await epicsApi.getAll(currentProject, { limit, page });
+      const epicsWithProgress = await withProgress(response.data);
 
-      // Load features for each epic to calculate progress
-      const epicsWithProgress = await Promise.all(
-        response.data.map(async (epic) => {
-          try {
-            const featuresResponse = await featuresApi.getByEpic(currentProject, epic._id);
-            const progress = calculateProgress(featuresResponse.data);
-            return { ...epic, progress };
-          } catch (error) {
-            return { ...epic, progress: { total: 0, completed: 0, percentage: 0 } };
-          }
-        })
-      );
+      if (loadId !== loadIdRef.current) return; // superseded
+      setEpics((prev) => (more ? [...prev, ...epicsWithProgress] : epicsWithProgress));
+      if (more) pageCountRef.current = page;
 
-      if (loadId !== loadIdRef.current) return; // a newer load superseded this one
-      setEpics(epicsWithProgress);
+      const total = response.pagination?.total ?? epicsWithProgress.length;
+      setHasMore(total > pageCountRef.current * PAGE_SIZE);
     } catch (error) {
       if (!silent && loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
     } finally {
-      // A non-silent load always clears its own spinner, even if a background
-      // (silent) refresh superseded it in the meantime.
-      if (!silent) setLoading(false);
+      if (!silent && !more) setLoading(false);
     }
   };
 
@@ -156,6 +165,14 @@ export default function EpicView() {
                   onExpand={setExpandedEpic}
                 />
               ))}
+            </div>
+          )}
+
+          {hasMore && !searchQuery && (
+            <div className="flex justify-center mt-6">
+              <button onClick={() => loadEpics({ more: true })} className="btn-secondary">
+                Load more
+              </button>
             </div>
           )}
         </>

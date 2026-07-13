@@ -10,8 +10,29 @@ export async function getEpics(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
+    const query = { type: DOC_TYPES.EPIC };
 
-    const epics = await collection.find({ type: DOC_TYPES.EPIC }).toArray();
+    // Optional pagination: ?limit=N&page=P. Without `limit`, return everything
+    // (backward compatible).
+    const limit = parseInt(req.query.limit, 10);
+    if (Number.isInteger(limit) && limit > 0) {
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const total = await collection.countDocuments(query);
+      const epics = await collection
+        .find(query)
+        .sort({ created_at: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray();
+
+      return res.json({
+        success: true,
+        data: epics,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+      });
+    }
+
+    const epics = await collection.find(query).sort({ created_at: 1 }).toArray();
 
     res.json({
       success: true,

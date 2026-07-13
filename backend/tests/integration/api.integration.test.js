@@ -115,6 +115,26 @@ test('projects are isolated: one project cannot see another project\'s epics', a
   assert.equal(inB.body.data.length, 0, 'project B must not see project A data');
 });
 
+test('getEpics paginates when a limit is provided', async () => {
+  const project = await makeProject('paged');
+  for (let i = 0; i < 5; i++) {
+    await request(app).post(`/api/${project}/epics`).send({ title: `Epic ${i}` });
+  }
+
+  const page1 = await request(app).get(`/api/${project}/epics?limit=2&page=1`);
+  assert.equal(page1.body.data.length, 2);
+  assert.equal(page1.body.pagination.total, 5);
+  assert.equal(page1.body.pagination.totalPages, 3);
+
+  const page3 = await request(app).get(`/api/${project}/epics?limit=2&page=3`);
+  assert.equal(page3.body.data.length, 1, 'last page has the remainder');
+
+  // No limit -> all epics, no pagination metadata (backward compatible).
+  const all = await request(app).get(`/api/${project}/epics`);
+  assert.equal(all.body.data.length, 5);
+  assert.equal(all.body.pagination, undefined);
+});
+
 test('the activity feed records create actions, newest first', async () => {
   const project = await makeProject();
 

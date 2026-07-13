@@ -64,8 +64,12 @@ export const projectsApi = {
 
 // Epics API
 export const epicsApi = {
-  getAll: async (project) => {
-    const response = await fetch(`${API_BASE_URL}/${project}/epics`, {
+  getAll: async (project, opts = {}) => {
+    const qs = new URLSearchParams();
+    if (opts.limit) qs.set('limit', opts.limit);
+    if (opts.page) qs.set('page', opts.page);
+    const query = qs.toString() ? `?${qs}` : '';
+    const response = await fetch(`${API_BASE_URL}/${project}/epics${query}`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);

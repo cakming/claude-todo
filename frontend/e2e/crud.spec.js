@@ -133,6 +133,27 @@ test('changes propagate to another tab in real time (websocket)', async ({ page,
   await pageB.close();
 });
 
+test('epics list paginates with a Load more button', async ({ page, request }) => {
+  // Seed 11 epics directly via the API for speed.
+  await request.post('http://localhost:3001/api/projects', { data: { name: 'paged' } });
+  for (let i = 1; i <= 11; i++) {
+    await request.post('http://localhost:3001/api/paged/epics', {
+      data: { title: `Epic ${String(i).padStart(2, '0')}` }
+    });
+  }
+
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Epics' })).toBeVisible();
+
+  // First page shows 9; Load more reveals the rest, then disappears.
+  await expect(page.locator('.card')).toHaveCount(9);
+  const loadMore = page.getByRole('button', { name: 'Load more' });
+  await expect(loadMore).toBeVisible();
+  await loadMore.click();
+  await expect(page.locator('.card')).toHaveCount(11);
+  await expect(loadMore).toHaveCount(0);
+});
+
 test('tree view renders the full hierarchy', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
