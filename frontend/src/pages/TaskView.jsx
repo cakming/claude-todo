@@ -73,12 +73,16 @@ export default function TaskView() {
   };
 
   const bulkMarkDone = async () => {
+    const ids = selectedIds;
+    const snapshot = tasks;
+    // Optimistic: flip the selected cards to Done immediately, then reconcile.
+    setTasks((ts) => ts.map((t) => (ids.includes(t._id) ? { ...t, status: 'done' } : t)));
+    setSelectedIds([]);
     try {
-      await tasksApi.bulkStatus(currentProject, selectedIds, 'done');
-      showToast(`${selectedIds.length} task(s) marked done`, 'success');
-      setSelectedIds([]);
-      loadData();
+      await tasksApi.bulkStatus(currentProject, ids, 'done');
+      showToast(`${ids.length} task(s) marked done`, 'success');
     } catch (e) {
+      setTasks(snapshot); // rollback
       showToast(e.message, 'error');
     }
   };
@@ -199,11 +203,16 @@ export default function TaskView() {
   };
 
   const handleStatusChange = async (task, newStatus) => {
+    const prev = task.status;
+    if (prev === newStatus) return;
+    // Optimistic: move the card right away (drag-drop and the status dropdown
+    // both land here). The server emits a realtime update that silently
+    // reconciles parent auto-status; on failure we roll the card back.
+    setTasks((ts) => ts.map((t) => (t._id === task._id ? { ...t, status: newStatus } : t)));
     try {
       await tasksApi.update(currentProject, task._id, { status: newStatus });
-      showToast('Task status updated', 'success');
-      loadData();
     } catch (error) {
+      setTasks((ts) => ts.map((t) => (t._id === task._id ? { ...t, status: prev } : t)));
       showToast(error.message, 'error');
     }
   };
