@@ -73,7 +73,7 @@ export default function FeatureView() {
     } catch (error) {
       if (!silent && loadId === loadIdRef.current) showToast('Failed to load features', 'error');
     } finally {
-      if (!silent && loadId === loadIdRef.current) setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

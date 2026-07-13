@@ -1,8 +1,11 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import { Server as SocketIOServer } from 'socket.io';
 import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
+import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
 import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
@@ -98,11 +101,19 @@ async function startServer() {
     // Ensure unique indexes on the users collection (safe if they already exist)
     await createUserIndexes();
 
+    // Wrap the Express app in an HTTP server so Socket.IO can share the port.
+    const server = http.createServer(app);
+    const io = new SocketIOServer(server, {
+      cors: { origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }
+    });
+    setIO(io);
+
     // Start listening
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Vibe Todo API server running on port ${PORT}`);
       console.log(`📍 API endpoint: http://localhost:${PORT}`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔌 Realtime (Socket.IO): enabled`);
       console.log(`🔐 Authentication: ${isAuthEnabled() ? 'ENABLED' : 'DISABLED'}`);
       if (isAuthEnabled()) {
         console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/login, /api/auth/register`);

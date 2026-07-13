@@ -56,7 +56,9 @@ export default function EpicView() {
     } catch (error) {
       if (!silent && loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
     } finally {
-      if (!silent && loadId === loadIdRef.current) setLoading(false);
+      // A non-silent load always clears its own spinner, even if a background
+      // (silent) refresh superseded it in the meantime.
+      if (!silent) setLoading(false);
     }
   };
 
