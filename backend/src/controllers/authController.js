@@ -1,7 +1,13 @@
+import crypto from 'crypto';
 import { ObjectId } from 'mongodb';
 import { getDB } from '../config/mongodb.js';
 import { hashPassword, comparePassword, validatePassword, validateEmail } from '../utils/auth.js';
 import { generateToken } from '../utils/jwt.js';
+import { sendMail } from '../utils/mailer.js';
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 const USERS_COLLECTION = 'users';
 
@@ -271,6 +277,82 @@ export async function changePassword(req, res) {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ success: false, message: 'Failed to change password', error: error.message });
+  }
+}
+
+/**
+ * Start a password reset: email the user a time-limited reset link.
+ * Always responds success to avoid revealing which emails exist.
+ */
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const usersCollection = getUsersCollection();
+    const user = await usersCollection.findOne({ email });
+
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { reset_token_hash: hashToken(token), reset_expires: expires, updated_at: new Date() } }
+      );
+
+      const base = process.env.APP_URL || 'http://localhost:5173';
+      const link = `${base}/?reset_token=${token}&email=${encodeURIComponent(email)}`;
+      await sendMail({
+        to: email,
+        subject: 'Reset your Vibe Todo password',
+        text: `You requested a password reset.\n\nReset it here (valid for 1 hour):\n${link}\n\nIf you didn't request this, ignore this email.`
+      });
+    }
+
+    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to start password reset' });
+  }
+}
+
+/**
+ * Complete a password reset using the emailed token.
+ */
+export async function resetPassword(req, res) {
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, token, and new password are required' });
+    }
+
+    const validation = validatePassword(newPassword);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: 'Password validation failed', errors: validation.errors });
+    }
+
+    const usersCollection = getUsersCollection();
+    const user = await usersCollection.findOne({ email });
+
+    const invalid = () =>
+      res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+
+    if (!user || !user.reset_token_hash || !user.reset_expires) return invalid();
+    if (new Date(user.reset_expires) < new Date()) return invalid();
+    if (user.reset_token_hash !== hashToken(token)) return invalid();
+
+    const hashed = await hashPassword(newPassword);
+    await usersCollection.updateOne(
+      { _id: user._id },
+      { $set: { password: hashed, reset_token_hash: null, reset_expires: null, updated_at: new Date() } }
+    );
+
+    res.json({ success: true, message: 'Password has been reset' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
 }
 

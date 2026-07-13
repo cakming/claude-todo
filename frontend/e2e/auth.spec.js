@@ -52,6 +52,20 @@ test('first user is admin: can see Users view and change password', async ({ pag
   await expect(page.getByRole('heading', { name: 'Change Password' })).toHaveCount(0);
 });
 
+test('forgot-password shows confirmation and reset opens from a link', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Forgot password?' }).click();
+  await expect(page.getByRole('heading', { name: 'Reset Password' })).toBeVisible();
+  await page.getByPlaceholder('Enter your email').fill('someone@example.com');
+  await page.getByRole('button', { name: 'Send reset link' }).click();
+  await expect(page.getByText(/reset link has been sent/)).toBeVisible();
+
+  // A reset link opens the reset form with the email/token prefilled.
+  await page.goto('/?reset_token=tok123&email=someone%40example.com');
+  await expect(page.getByRole('heading', { name: 'Choose a New Password' })).toBeVisible();
+  await expect(page.getByPlaceholder('Email', { exact: true })).toHaveValue('someone@example.com');
+});
+
 test('rejects login with wrong credentials', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Username').fill('nobody');

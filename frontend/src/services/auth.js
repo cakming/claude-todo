@@ -115,6 +115,36 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 /**
+ * Request a password reset email
+ */
+export async function forgotPassword(email) {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+/**
+ * Reset a password using an emailed token
+ */
+export async function resetPassword(email, token, newPassword) {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, token, newPassword })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || (data.errors && data.errors.join(', ')) || 'Reset failed');
+  }
+  return data;
+}
+
+/**
  * Logout user
  */
 export function logout() {
