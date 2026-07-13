@@ -14,6 +14,7 @@ import epicRoutes from './routes/epics.js';
 import featureRoutes from './routes/features.js';
 import taskRoutes from './routes/tasks.js';
 import treeRoutes from './routes/tree.js';
+import activityRoutes from './routes/activity.js';
 
 // Load environment variables
 dotenv.config();
@@ -68,6 +69,7 @@ app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
 app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
 app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
+app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
 
 // Test-only endpoint to reset the database between E2E tests. Gated behind
 // E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs

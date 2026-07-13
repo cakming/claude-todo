@@ -21,7 +21,7 @@ before(async () => {
   const mongoPath = fileURLToPath(new URL('../src/config/mongodb.js', import.meta.url));
   mock.module(mongoPath, {
     namedExports: {
-      getDB: () => ({ collection: () => collection }),
+      getDB: () => ({ collection: (name) => (name === 'activity' ? makeCollection([]) : collection) }),
       getProjectCollection: () => collection
     }
   });

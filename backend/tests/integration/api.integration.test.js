@@ -101,6 +101,23 @@ test('completing all tasks propagates status up to the epic (auto-status)', asyn
   assert.equal(epicNode.features[0].status, 'done', 'feature should auto-complete too');
 });
 
+test('the activity feed records create actions, newest first', async () => {
+  const project = await makeProject();
+
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'Logged Epic' });
+  await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'Logged Feature' });
+
+  const res = await request(app).get(`/api/${project}/activity`);
+  assert.equal(res.status, 200);
+
+  const actions = res.body.data.map((a) => `${a.action}:${a.item_type}`);
+  assert.ok(actions.includes('created:epic'), 'epic creation logged');
+  assert.ok(actions.includes('created:feature'), 'feature creation logged');
+  assert.equal(res.body.data[0].item_type, 'feature', 'newest entry first');
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

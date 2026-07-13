@@ -82,6 +82,17 @@ test('dragging a task to the Done column changes its status', async ({ page }) =
   await expect(page.getByText('To Do (0)')).toBeVisible();
 });
 
+test('activity feed lists recent changes', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Activity Epic');
+
+  await page.getByRole('button', { name: '📜 Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
+  await expect(page.getByText(/Activity Epic/)).toBeVisible();
+  await expect(page.getByText('created').first()).toBeVisible();
+});
+
 test('tree view renders the full hierarchy', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

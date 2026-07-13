@@ -208,4 +208,14 @@ export const treeApi = {
   }
 };
 
+// Activity API
+export const activityApi = {
+  get: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/activity`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
 export { ApiError };
