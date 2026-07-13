@@ -1,4 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable
+} from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi, tasksApi } from '../services/api';
 import TaskCard from '../components/Task/TaskCard';
@@ -7,6 +15,43 @@ import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 import { filterByQuery } from '../utils/helpers';
+
+const KANBAN_COLUMNS = [
+  { id: 'todo', label: 'To Do', header: 'bg-blue-50 text-blue-900' },
+  { id: 'in_progress', label: 'In Progress', header: 'bg-yellow-50 text-yellow-900' },
+  { id: 'done', label: 'Done', header: 'bg-green-50 text-green-900' },
+  { id: 'blocked', label: 'Blocked', header: 'bg-red-50 text-red-900' }
+];
+
+// A Kanban column that accepts dropped task cards.
+function DroppableColumn({ id, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid={`column-${id}`}
+      className={`space-y-3 min-h-[80px] rounded-lg transition-colors ${
+        isOver ? 'ring-2 ring-blue-400 bg-blue-50/40' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+// A draggable wrapper around a task card. An 8px activation distance keeps the
+// card's status <select> and menu clickable.
+function DraggableTask({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.5 : 1 }
+    : undefined;
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </div>
+  );
+}
 
 export default function TaskView() {
   const { currentProject, showToast } = useApp();
@@ -123,6 +168,18 @@ export default function TaskView() {
     }
   };
 
+  // Require a small drag distance so clicks on the card's controls still work.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    const task = tasks.find(t => t._id === active.id);
+    if (task && task.status !== over.id) {
+      handleStatusChange(task, over.id);
+    }
+  };
+
   if (loading) {
     return <Loading message="Loading tasks..." />;
   }
@@ -215,95 +272,33 @@ export default function TaskView() {
       </div>
 
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* To Do Column */}
-          <div>
-            <div className="bg-blue-50 rounded-lg p-3 mb-4">
-              <h3 className="font-semibold text-blue-900">
-                To Do ({tasksByStatus.todo.length})
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {tasksByStatus.todo.map(task => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  featureName={task.featureName}
-                  epicName={task.epicName}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {KANBAN_COLUMNS.map(col => (
+              <div key={col.id}>
+                <div className={`rounded-lg p-3 mb-4 ${col.header}`}>
+                  <h3 className="font-semibold">
+                    {col.label} ({tasksByStatus[col.id].length})
+                  </h3>
+                </div>
+                <DroppableColumn id={col.id}>
+                  {tasksByStatus[col.id].map(task => (
+                    <DraggableTask key={task._id} id={task._id}>
+                      <TaskCard
+                        task={task}
+                        featureName={task.featureName}
+                        epicName={task.epicName}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onStatusChange={handleStatusChange}
+                      />
+                    </DraggableTask>
+                  ))}
+                </DroppableColumn>
+              </div>
+            ))}
           </div>
-
-          {/* In Progress Column */}
-          <div>
-            <div className="bg-yellow-50 rounded-lg p-3 mb-4">
-              <h3 className="font-semibold text-yellow-900">
-                In Progress ({tasksByStatus.in_progress.length})
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {tasksByStatus.in_progress.map(task => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  featureName={task.featureName}
-                  epicName={task.epicName}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Done Column */}
-          <div>
-            <div className="bg-green-50 rounded-lg p-3 mb-4">
-              <h3 className="font-semibold text-green-900">
-                Done ({tasksByStatus.done.length})
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {tasksByStatus.done.map(task => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  featureName={task.featureName}
-                  epicName={task.epicName}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Blocked Column */}
-          <div>
-            <div className="bg-red-50 rounded-lg p-3 mb-4">
-              <h3 className="font-semibold text-red-900">
-                Blocked ({tasksByStatus.blocked.length})
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {tasksByStatus.blocked.map(task => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  featureName={task.featureName}
-                  epicName={task.epicName}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        </DndContext>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleTasks.map(task => (

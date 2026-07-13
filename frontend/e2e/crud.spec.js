@@ -58,6 +58,30 @@ test('search filters the epic list', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Searchable Epic/ })).toBeVisible();
 });
 
+test('dragging a task to the Done column changes its status', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Drag Epic');
+  await createFeature(page, 'Drag Epic', 'Drag Feature');
+  await createTask(page, 'Drag Epic / Drag Feature', 'Draggable Task');
+  await expect(page.getByText('To Do (1)')).toBeVisible();
+
+  const card = page.locator('.card', { hasText: 'Draggable Task' });
+  const doneColumn = page.getByTestId('column-done');
+  const from = await card.boundingBox();
+  const to = await doneColumn.boundingBox();
+
+  // Simulate a pointer drag past the 8px activation threshold, then drop.
+  await page.mouse.move(from.x + from.width / 2, from.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 20, from.y + 30, { steps: 5 });
+  await page.mouse.move(to.x + to.width / 2, to.y + 40, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(page.getByText('Done (1)')).toBeVisible();
+  await expect(page.getByText('To Do (0)')).toBeVisible();
+});
+
 test('tree view renders the full hierarchy', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
