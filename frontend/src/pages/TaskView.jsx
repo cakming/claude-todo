@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi, tasksApi } from '../services/api';
 import TaskCard from '../components/Task/TaskCard';
@@ -15,6 +15,7 @@ export default function TaskView() {
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'list'
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -23,6 +24,7 @@ export default function TaskView() {
   }, [currentProject]);
 
   const loadData = async () => {
+    const loadId = ++loadIdRef.current;
     try {
       setLoading(true);
       const epicsResponse = await epicsApi.getAll(currentProject);
@@ -58,12 +60,13 @@ export default function TaskView() {
         }
       }
 
+      if (loadId !== loadIdRef.current) return;
       setFeatures(allFeatures);
       setTasks(allTasks);
     } catch (error) {
-      showToast('Failed to load tasks', 'error');
+      if (loadId === loadIdRef.current) showToast('Failed to load tasks', 'error');
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   };
 

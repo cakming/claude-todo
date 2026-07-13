@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { treeApi } from '../services/api';
 import TreeNode from '../components/Tree/TreeNode';
@@ -9,6 +9,7 @@ export default function TreeView() {
   const { currentProject, showToast } = useApp();
   const [treeData, setTreeData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -17,14 +18,16 @@ export default function TreeView() {
   }, [currentProject]);
 
   const loadTree = async () => {
+    const loadId = ++loadIdRef.current;
     try {
       setLoading(true);
       const response = await treeApi.getProject(currentProject);
+      if (loadId !== loadIdRef.current) return;
       setTreeData(response.data);
     } catch (error) {
-      showToast('Failed to load tree view', 'error');
+      if (loadId === loadIdRef.current) showToast('Failed to load tree view', 'error');
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   };
 

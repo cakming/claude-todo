@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi } from '../services/api';
 import EpicCard from '../components/Epic/EpicCard';
@@ -15,6 +15,7 @@ export default function EpicView() {
   const [showModal, setShowModal] = useState(false);
   const [editingEpic, setEditingEpic] = useState(null);
   const [expandedEpic, setExpandedEpic] = useState(null);
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -23,6 +24,8 @@ export default function EpicView() {
   }, [currentProject]);
 
   const loadEpics = async () => {
+    // Guard against out-of-order responses when the project changes mid-load.
+    const loadId = ++loadIdRef.current;
     try {
       setLoading(true);
       const response = await epicsApi.getAll(currentProject);
@@ -40,11 +43,12 @@ export default function EpicView() {
         })
       );
 
+      if (loadId !== loadIdRef.current) return; // a newer load superseded this one
       setEpics(epicsWithProgress);
     } catch (error) {
-      showToast('Failed to load epics', 'error');
+      if (loadId === loadIdRef.current) showToast('Failed to load epics', 'error');
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   };
 

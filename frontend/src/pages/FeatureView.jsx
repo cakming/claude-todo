@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { epicsApi, featuresApi, tasksApi } from '../services/api';
 import FeatureCard from '../components/Feature/FeatureCard';
@@ -16,6 +16,7 @@ export default function FeatureView() {
   const [showModal, setShowModal] = useState(false);
   const [editingFeature, setEditingFeature] = useState(null);
   const [selectedEpicFilter, setSelectedEpicFilter] = useState('all');
+  const loadIdRef = useRef(0);
 
   useEffect(() => {
     if (currentProject) {
@@ -24,9 +25,11 @@ export default function FeatureView() {
   }, [currentProject]);
 
   const loadData = async () => {
+    const loadId = ++loadIdRef.current;
     try {
       setLoading(true);
       const epicsResponse = await epicsApi.getAll(currentProject);
+      if (loadId !== loadIdRef.current) return;
       setEpics(epicsResponse.data);
 
       // Load all features for all epics
@@ -58,11 +61,12 @@ export default function FeatureView() {
         }
       }
 
+      if (loadId !== loadIdRef.current) return;
       setFeatures(allFeatures);
     } catch (error) {
-      showToast('Failed to load features', 'error');
+      if (loadId === loadIdRef.current) showToast('Failed to load features', 'error');
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   };
 

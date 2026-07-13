@@ -19,11 +19,15 @@ export function AppProvider({ children }) {
     try {
       setLoading(true);
       const response = await projectsApi.getAll();
-      setProjects(response.data);
+      // Guard against stray/invalid collection names slipping into the UI.
+      const validProjects = (response.data || []).filter(
+        (name) => name && name !== 'undefined' && name !== 'null'
+      );
+      setProjects(validProjects);
 
       // Set first project as current if available and no current project
-      if (response.data.length > 0 && !currentProject) {
-        setCurrentProject(response.data[0]);
+      if (validProjects.length > 0 && !currentProject) {
+        setCurrentProject(validProjects[0]);
       }
 
       setError(null);
