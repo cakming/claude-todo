@@ -7,6 +7,7 @@ import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress, filterByQuery } from '../utils/helpers';
+import { undoDeleteToast } from '../utils/undo';
 
 export default function FeatureView() {
   const { currentProject, showToast, refreshTick } = useApp();
@@ -110,8 +111,9 @@ export default function FeatureView() {
     }
 
     try {
-      await featuresApi.delete(currentProject, feature._id);
-      showToast('Feature deleted successfully', 'success');
+      const res = await featuresApi.delete(currentProject, feature._id);
+      showToast('Feature deleted successfully', 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');

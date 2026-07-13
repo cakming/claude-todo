@@ -222,7 +222,8 @@ export async function bulkDeleteTasks(req, res) {
 
     await recomputeParents(collection, tasks);
     await logActivity(project, { action: 'deleted', item_type: 'task', title: `${tasks.length} tasks` });
-    res.json({ success: true, deleted: tasks.length });
+    // Return the removed docs so the client can offer an undo (restore).
+    res.json({ success: true, deleted: tasks.length, removed: tasks });
   } catch (error) {
     console.error('Error bulk-deleting tasks:', error);
     res.status(500).json({ success: false, error: 'Failed to bulk-delete tasks' });
@@ -276,7 +277,8 @@ export async function deleteTask(req, res) {
 
     res.json({
       success: true,
-      message: 'Task deleted successfully'
+      message: 'Task deleted successfully',
+      removed: [task]
     });
   } catch (error) {
     console.error('Error deleting task:', error);

@@ -192,6 +192,12 @@ export async function deleteFeature(req, res) {
       });
     }
 
+    // Capture child tasks before deleting so the client can undo the cascade.
+    const tasks = await collection.find({
+      type: DOC_TYPES.TASK,
+      feature_id: featureId
+    }).toArray();
+
     // Delete all tasks belonging to this feature
     await collection.deleteMany({
       type: DOC_TYPES.TASK,
@@ -211,7 +217,8 @@ export async function deleteFeature(req, res) {
 
     res.json({
       success: true,
-      message: 'Feature and all related tasks deleted successfully'
+      message: 'Feature and all related tasks deleted successfully',
+      removed: [feature, ...tasks]
     });
   } catch (error) {
     console.error('Error deleting feature:', error);

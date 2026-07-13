@@ -22,6 +22,7 @@ import treeRoutes from './routes/tree.js';
 import activityRoutes from './routes/activity.js';
 import adminRoutes from './routes/admin.js';
 import { exportProject, importProject } from './controllers/exchangeController.js';
+import { restoreItems } from './controllers/restoreController.js';
 
 // Load environment variables
 dotenv.config();
@@ -88,6 +89,9 @@ app.use('/api/:project/activity', authenticate, validateProject, activityRoutes)
 // Project export / import (JSON).
 app.get('/api/:project/export', authenticate, validateProject, exportProject);
 app.post('/api/:project/import', authenticate, validateProject, importProject);
+
+// Restore previously-deleted items (undo of a delete).
+app.post('/api/:project/restore', authenticate, validateProject, restoreItems);
 
 // Test-only endpoint to reset the database between E2E tests. Gated behind
 // E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs

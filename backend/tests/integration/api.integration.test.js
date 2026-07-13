@@ -266,6 +266,43 @@ test('bulk status and bulk delete update tasks and their parent feature', async 
   assert.equal(bad.status, 400);
 });
 
+test('deleting an epic returns the removed docs and they can be restored (undo)', async () => {
+  const project = await makeProject('undo');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const epicId = epic.body.data._id;
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epicId}`)
+    .send({ title: 'F' });
+  await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T' });
+
+  const del = await request(app).delete(`/api/${project}/epics/${epicId}`);
+  assert.equal(del.status, 200);
+  assert.equal(del.body.removed.length, 3, 'epic + feature + task returned for undo');
+
+  // Project is empty after delete.
+  let tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data.length, 0);
+
+  // Restore re-inserts everything with original ids and relationships intact.
+  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(restore.status, 200);
+  assert.equal(restore.body.restored, 3);
+
+  tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data.length, 1, 'epic is back');
+  assert.equal(tree.body.data[0]._id, epicId, 'same id preserved');
+  assert.equal(tree.body.data[0].features[0].title, 'F', 'feature restored under epic');
+  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T', 'task restored under feature');
+
+  // Restore is idempotent and validates input.
+  const again = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(again.body.restored, 3, 'double-undo is harmless');
+  const bad = await request(app).post(`/api/${project}/restore`).send({ items: [] });
+  assert.equal(bad.status, 400);
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

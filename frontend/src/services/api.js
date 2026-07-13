@@ -251,6 +251,18 @@ export const exchangeApi = {
   }
 };
 
+// Restore (undo delete) API
+export const restoreApi = {
+  restore: async (project, items) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/restore`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify({ items })
+    });
+    return handleResponse(response);
+  }
+};
+
 // Activity API
 export const activityApi = {
   get: async (project) => {

@@ -44,6 +44,26 @@ test('deleting an epic cascades and empties the project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'No Features Yet' })).toBeVisible();
 });
 
+test('undo restores a deleted epic and its children', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Undoable Epic');
+  await createFeature(page, 'Undoable Epic', 'Undoable Feature');
+
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await cardMenuAction(page, 'Undoable Epic', 'Delete');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
+
+  // The delete toast offers an Undo that restores the epic and its feature.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('heading', { name: /Undoable Epic/ })).toBeVisible();
+
+  await page.getByRole('button', { name: '✨ Features' }).click();
+  await expect(page.getByText('Undoable Feature')).toBeVisible();
+});
+
 test('search filters the epic list', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

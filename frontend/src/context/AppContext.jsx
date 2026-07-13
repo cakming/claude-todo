@@ -88,15 +88,17 @@ export function AppProvider({ children }) {
     }
   };
 
-  const showToast = (message, type = 'info') => {
+  // `options.action` = { label, onClick } renders an inline button (e.g. Undo)
+  // and, since users need time to react, keeps that toast up longer.
+  const showToast = (message, type = 'info', options = {}) => {
     const id = ++toastIdRef.current;
+    const { action } = options;
     // Keep at most the 4 most recent toasts so they can't pile up and cover the UI.
-    setToasts(prev => [...prev, { id, message, type }].slice(-4));
+    setToasts(prev => [...prev, { id, message, type, action }].slice(-4));
 
-    // Auto-remove toast after 5 seconds
     setTimeout(() => {
       removeToast(id);
-    }, 5000);
+    }, action ? 8000 : 5000);
   };
 
   const removeToast = (id) => {

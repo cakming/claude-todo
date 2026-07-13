@@ -7,6 +7,7 @@ import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress } from '../utils/helpers';
+import { undoDeleteToast } from '../utils/undo';
 
 export default function EpicView() {
   const { currentProject, showToast, refreshTick } = useApp();
@@ -113,8 +114,9 @@ export default function EpicView() {
     }
 
     try {
-      await epicsApi.delete(currentProject, epic._id);
-      showToast('Epic deleted successfully', 'success');
+      const res = await epicsApi.delete(currentProject, epic._id);
+      showToast('Epic deleted successfully', 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadEpics }));
       loadEpics();
     } catch (error) {
       showToast(error.message, 'error');

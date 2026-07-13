@@ -189,8 +189,13 @@ export async function deleteEpic(req, res) {
       epic_id: epicId
     }).toArray();
 
-    // Delete all tasks belonging to these features
+    // Capture child tasks before deleting so the client can undo the cascade.
     const featureIds = features.map(f => f._id);
+    const tasks = featureIds.length > 0
+      ? await collection.find({ type: DOC_TYPES.TASK, feature_id: { $in: featureIds } }).toArray()
+      : [];
+
+    // Delete all tasks belonging to these features
     if (featureIds.length > 0) {
       await collection.deleteMany({
         type: DOC_TYPES.TASK,
@@ -221,7 +226,8 @@ export async function deleteEpic(req, res) {
 
     res.json({
       success: true,
-      message: 'Epic and all related features and tasks deleted successfully'
+      message: 'Epic and all related features and tasks deleted successfully',
+      removed: [epicToDelete, ...features, ...tasks].filter(Boolean)
     });
   } catch (error) {
     console.error('Error deleting epic:', error);

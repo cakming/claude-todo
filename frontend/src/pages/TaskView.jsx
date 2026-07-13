@@ -15,6 +15,7 @@ import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 import { filterByQuery } from '../utils/helpers';
+import { undoDeleteToast } from '../utils/undo';
 
 const KANBAN_COLUMNS = [
   { id: 'todo', label: 'To Do', header: 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-200' },
@@ -85,8 +86,9 @@ export default function TaskView() {
   const bulkDelete = async () => {
     if (!confirm(`Delete ${selectedIds.length} selected task(s)?`)) return;
     try {
-      await tasksApi.bulkDelete(currentProject, selectedIds);
-      showToast(`${selectedIds.length} task(s) deleted`, 'success');
+      const res = await tasksApi.bulkDelete(currentProject, selectedIds);
+      showToast(`${selectedIds.length} task(s) deleted`, 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
       setSelectedIds([]);
       loadData();
     } catch (e) {
@@ -187,8 +189,9 @@ export default function TaskView() {
     }
 
     try {
-      await tasksApi.delete(currentProject, task._id);
-      showToast('Task deleted successfully', 'success');
+      const res = await tasksApi.delete(currentProject, task._id);
+      showToast('Task deleted successfully', 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');
