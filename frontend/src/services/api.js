@@ -62,6 +62,29 @@ export const projectsApi = {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
+  },
+
+  trash: async () => {
+    const response = await fetch(`${API_BASE_URL}/projects/trash`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  restore: async (name) => {
+    const response = await fetch(`${API_BASE_URL}/projects/${name}/restore`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  purge: async (name) => {
+    const response = await fetch(`${API_BASE_URL}/projects/${name}/purge`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
   }
 };
 

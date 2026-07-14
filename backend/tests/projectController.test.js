@@ -8,6 +8,7 @@ import { makeCollection } from './helpers/fakeCollection.js';
 let existingProjects = [];
 let droppedCollection = null;
 const collection = makeCollection([]);
+const trashColl = makeCollection([]); // the deleted_projects marker collection
 
 let createProject;
 let deleteProject;
@@ -22,7 +23,8 @@ before(async () => {
       getDB: () => ({
         dropCollection: async (name) => {
           droppedCollection = name;
-        }
+        },
+        collection: () => trashColl
       })
     }
   });
@@ -33,6 +35,7 @@ beforeEach(() => {
   existingProjects = [];
   droppedCollection = null;
   collection.setDocs([]);
+  trashColl.setDocs([]);
 });
 
 const res = () => ({
@@ -76,14 +79,15 @@ test('createProject rejects a duplicate (post-sanitization) with 409', async () 
   assert.equal(r.statusCode, 409);
 });
 
-test('deleteProject drops the prefixed collection for an existing project', async () => {
+test('deleteProject soft-deletes (marks trashed, keeps the collection)', async () => {
   existingProjects = ['my_app'];
   const r = res();
   await deleteProject({ params: { name: 'my_app' } }, r);
 
   assert.equal(r.statusCode, 200);
   assert.equal(r.body.success, true);
-  assert.equal(droppedCollection, 'project_my_app');
+  assert.equal(droppedCollection, null, 'collection is retained');
+  assert.ok(trashColl.docs.some((d) => d.name === 'my_app'), 'project is marked trashed');
 });
 
 test('deleteProject returns 404 for an unknown project', async () => {

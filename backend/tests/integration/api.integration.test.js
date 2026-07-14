@@ -62,6 +62,42 @@ test('POST /api/projects sanitizes the name and it then appears in the list', as
   assert.ok(list.body.data.includes('my_test_app'));
 });
 
+test('projects can be trashed, restored, and purged', async () => {
+  const project = await makeProject('lifecycle');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Keeper' });
+
+  // Soft-delete hides it from the list but keeps the data.
+  const del = await request(app).delete(`/api/projects/${project}`);
+  assert.equal(del.status, 200);
+  let list = await request(app).get('/api/projects');
+  assert.ok(!list.body.data.includes(project), 'trashed project is hidden');
+
+  const trash = await request(app).get('/api/projects/trash');
+  assert.equal(trash.body.data.length, 1);
+  assert.equal(trash.body.data[0].name, project);
+
+  // Re-creating a trashed name is blocked with a hint.
+  const dup = await request(app).post('/api/projects').send({ name: project });
+  assert.equal(dup.status, 409);
+
+  // Restore brings it back with its data intact.
+  const restore = await request(app).post(`/api/projects/${project}/restore`);
+  assert.equal(restore.status, 200);
+  list = await request(app).get('/api/projects');
+  assert.ok(list.body.data.includes(project), 'restored project is listed again');
+  const epics = await request(app).get(`/api/${project}/epics`);
+  assert.equal(epics.body.data[0].title, 'Keeper', 'data survived the round-trip');
+
+  // Purge permanently drops it.
+  await request(app).delete(`/api/projects/${project}`);
+  const purge = await request(app).delete(`/api/projects/${project}/purge`);
+  assert.equal(purge.status, 200);
+  const afterTrash = await request(app).get('/api/projects/trash');
+  assert.equal(afterTrash.body.data.length, 0);
+  const afterList = await request(app).get('/api/projects');
+  assert.ok(!afterList.body.data.includes(project));
+});
+
 test('requests against a non-existent project return 404', async () => {
   const res = await request(app).get('/api/does_not_exist/epics');
   assert.equal(res.status, 404);

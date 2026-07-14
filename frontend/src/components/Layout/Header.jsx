@@ -5,6 +5,7 @@ import { exchangeApi } from '../../services/api';
 import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
 import ShareModal from '../Common/ShareModal';
+import ProjectsModal from '../Common/ProjectsModal';
 import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
@@ -16,6 +17,7 @@ export default function Header() {
   const [dark, setDark] = useState(isDark());
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
   const fileRef = useRef(null);
 
   const handleExport = async () => {
@@ -109,6 +111,15 @@ export default function Header() {
                 className="btn-primary"
               >
                 + New Project
+              </button>
+
+              <button
+                onClick={() => setShowProjectsModal(true)}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                title="Manage projects (delete / restore)"
+                aria-label="Manage projects"
+              >
+                ⚙︎
               </button>
 
               {currentProject && (
@@ -226,6 +237,11 @@ export default function Header() {
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+      />
+
+      <ProjectsModal
+        isOpen={showProjectsModal}
+        onClose={() => setShowProjectsModal(false)}
       />
     </>
   );

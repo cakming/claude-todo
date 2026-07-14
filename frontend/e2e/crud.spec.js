@@ -64,6 +64,23 @@ test('undo restores a deleted epic and its children', async ({ page }) => {
   await expect(page.getByText('Undoable Feature')).toBeVisible();
 });
 
+test('project trash: move a project to trash and restore it', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  const { sanitized } = await createProject(page);
+  await createEpic(page, 'Keeper Epic');
+
+  await page.getByRole('button', { name: 'Manage projects' }).click();
+  await expect(page.getByRole('heading', { name: 'Manage projects' })).toBeVisible();
+  await page.getByRole('button', { name: 'Move to trash' }).click();
+
+  // A trashed-project row appears with a Restore action; restoring empties it.
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByText('No trashed projects.')).toBeVisible();
+});
+
 test('trash: a deleted epic can be restored from the Trash view', async ({ page }) => {
   page.on('dialog', (d) => d.accept());
 

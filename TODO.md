@@ -25,7 +25,9 @@ Living backlog for the Vibe Coding Todo Manager. Shipped work is summarized in
 5. [x] **Share management UI** — modal to create (with expiry), copy, and revoke links.
 6. [x] **Notion-style block editor** — TipTap WYSIWYG (headings, lists, quote, code, image); old markdown pages auto-convert on open.
 7. [x] **Comments / mentions** — comment threads on epics/features/tasks with @mention parsing + highlight.
-8. [ ] **Project-level soft-delete** — trash and restore whole projects.
+8. [x] **Project-level soft-delete** — projects trash/restore/purge + a Manage-projects modal.
+
+**All backlog items complete.** ✅
 
 ## Not planned (notes only)
 

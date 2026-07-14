@@ -88,10 +88,25 @@ export function makeCollection(initialDocs = []) {
       docs.splice(idx, 1);
       return { deletedCount: 1 };
     },
-    async updateOne(query, update) {
+    async updateOne(query, update, options = {}) {
       const doc = docs.find((d) => matches(d, query));
-      if (doc) applyUpdate(doc, update);
-      return { matchedCount: doc ? 1 : 0, modifiedCount: doc ? 1 : 0 };
+      if (doc) {
+        applyUpdate(doc, update);
+        return { matchedCount: 1, modifiedCount: 1 };
+      }
+      if (options.upsert) {
+        // Seed the new doc from the query's equality fields, then apply $set.
+        const seed = {};
+        for (const [k, v] of Object.entries(query)) {
+          if (v === null || typeof v !== 'object') seed[k] = v;
+        }
+        const _id = genId();
+        const created = { _id, ...seed };
+        applyUpdate(created, update);
+        docs.push(created);
+        return { matchedCount: 0, modifiedCount: 0, upsertedId: _id };
+      }
+      return { matchedCount: 0, modifiedCount: 0 };
     },
     async updateMany(query, update) {
       const targets = docs.filter((d) => matches(d, query));
