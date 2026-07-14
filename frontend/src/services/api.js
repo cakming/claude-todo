@@ -375,6 +375,34 @@ export const publicApi = {
   }
 };
 
+// Comments API
+export const commentsApi = {
+  list: async (project, targetType, targetId) => {
+    const qs = `?target_type=${encodeURIComponent(targetType)}&target_id=${encodeURIComponent(targetId)}`;
+    const response = await fetch(`${API_BASE_URL}/${project}/comments${qs}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (project, data) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/comments`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  delete: async (project, id) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/comments/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
 // Activity API
 export const activityApi = {
   get: async (project) => {

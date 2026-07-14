@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import StatusBadge from '../Common/StatusBadge';
 import ProgressBar from '../Common/ProgressBar';
+import CommentsModal from '../Common/CommentsModal';
 import { truncate, formatDateTime } from '../../utils/helpers';
 
 export default function FeatureCard({ feature, epicName, onEdit, onDelete, onExpand }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   return (
     <div className="card hover:shadow-lg transition-shadow relative">
@@ -25,6 +27,15 @@ export default function FeatureCard({ feature, epicName, onEdit, onDelete, onExp
               className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
             >
               Edit
+            </button>
+            <button
+              onClick={() => {
+                setShowComments(true);
+                setShowMenu(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+            >
+              Comments
             </button>
             <button
               onClick={() => {
@@ -83,6 +94,14 @@ export default function FeatureCard({ feature, epicName, onEdit, onDelete, onExp
           Updated: {formatDateTime(feature.updated_at)}
         </div>
       </div>
+
+      {showComments && (
+        <CommentsModal
+          isOpen
+          onClose={() => setShowComments(false)}
+          target={{ type: 'feature', id: feature._id, title: feature.title }}
+        />
+      )}
     </div>
   );
 }

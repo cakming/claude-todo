@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import StatusBadge from '../Common/StatusBadge';
+import CommentsModal from '../Common/CommentsModal';
 import { truncate } from '../../utils/helpers';
 
 export default function TaskCard({ task, featureName, epicName, onEdit, onDelete, onStatusChange, selected, onToggleSelect }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const isOverdue =
     task.due_date &&
@@ -43,6 +45,15 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
               className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 text-sm"
             >
               Edit
+            </button>
+            <button
+              onClick={() => {
+                setShowComments(true);
+                setShowMenu(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 text-sm"
+            >
+              Comments
             </button>
             <button
               onClick={() => {
@@ -108,6 +119,14 @@ export default function TaskCard({ task, featureName, epicName, onEdit, onDelete
           )}
         </div>
       </div>
+
+      {showComments && (
+        <CommentsModal
+          isOpen
+          onClose={() => setShowComments(false)}
+          target={{ type: 'task', id: task._id, title: task.title }}
+        />
+      )}
     </div>
   );
 }

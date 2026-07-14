@@ -505,6 +505,51 @@ test('share links can expire; expired links are rejected and removed', async () 
   assert.equal(gone.status, 404);
 });
 
+test('comments: add, list with parsed mentions, and delete on a task', async () => {
+  const project = await makeProject('comments');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const task = await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T' });
+  const taskId = task.body.data._id;
+
+  // Empty to start; target/type are required.
+  const bad = await request(app).get(`/api/${project}/comments`);
+  assert.equal(bad.status, 400);
+
+  const add = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: taskId, body: 'Nice work @alice and @bob' });
+  assert.equal(add.status, 201);
+  assert.deepEqual(add.body.data.mentions, ['alice', 'bob'], 'mentions parsed');
+
+  const list = await request(app).get(`/api/${project}/comments?target_type=task&target_id=${taskId}`);
+  assert.equal(list.body.data.length, 1);
+  assert.equal(list.body.data[0].body, 'Nice work @alice and @bob');
+
+  // Commenting on a missing target 404s; empty body 400s.
+  const missing = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: '0'.repeat(24), body: 'hi' });
+  assert.equal(missing.status, 404);
+  const empty = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: taskId, body: '   ' });
+  assert.equal(empty.status, 400);
+
+  const del = await request(app).delete(`/api/${project}/comments/${add.body.data._id}`);
+  assert.equal(del.status, 200);
+  const after = await request(app).get(`/api/${project}/comments?target_type=task&target_id=${taskId}`);
+  assert.equal(after.body.data.length, 0);
+
+  // Comments never leak into the item tree or export.
+  const tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data[0].features[0].tasks.length, 1, 'only the task, no comment docs');
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

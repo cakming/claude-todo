@@ -25,6 +25,7 @@ import pageRoutes from './routes/pages.js';
 import uploadRoutes from './routes/uploads.js';
 import shareRoutes from './routes/shares.js';
 import trashRoutes from './routes/trash.js';
+import commentRoutes from './routes/comments.js';
 import { exportProject, importProject } from './controllers/exchangeController.js';
 import { getPublicShare } from './controllers/sharesController.js';
 
@@ -95,6 +96,7 @@ app.use('/api/:project/activity', authenticate, validateProject, activityRoutes)
 app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
 app.use('/api/:project/shares', authenticate, validateProject, shareRoutes);
 app.use('/api/:project/trash', authenticate, validateProject, trashRoutes);
+app.use('/api/:project/comments', authenticate, validateProject, commentRoutes);
 // Uploads apply auth per-route (POST authed, GET public) so image tags load.
 app.use('/api/:project/uploads', validateProject, uploadRoutes);
 

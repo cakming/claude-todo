@@ -239,6 +239,29 @@ test('share management: create a link, use it, then revoke it', async ({ page })
   await expect(page.getByRole('heading', { name: 'Link unavailable' })).toBeVisible();
 });
 
+test('comments: add a comment with a mention to a task', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Comment Epic');
+  await createFeature(page, 'Comment Epic', 'Comment Feature');
+  await createTask(page, 'Comment Epic / Comment Feature', 'Comment Task');
+
+  // Open the task card's Comments thread.
+  const card = page.locator('.card', { hasText: 'Comment Task' });
+  await card.getByRole('button', { name: /Actions for Comment Task/ }).click();
+  await card.getByRole('button', { name: 'Comments' }).click();
+
+  await expect(page.getByRole('heading', { name: /Comments — Comment Task/ })).toBeVisible();
+  await expect(page.getByText('No comments yet. Start the thread.')).toBeVisible();
+
+  await page.getByLabel('New comment').fill('Looks good @alice');
+  await page.getByRole('button', { name: 'Comment', exact: true }).click();
+
+  // The comment appears; the @mention is highlighted as its own span.
+  await expect(page.getByText('Looks good', { exact: false })).toBeVisible();
+  await expect(page.locator('span.text-blue-600', { hasText: '@alice' })).toBeVisible();
+});
+
 test('activity feed lists recent changes', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
