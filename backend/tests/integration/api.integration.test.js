@@ -445,6 +445,33 @@ test('share links expose read-only project and page views publicly', async () =>
   assert.equal(afterRevoke.status, 404);
 });
 
+test('share links can expire; expired links are rejected and removed', async () => {
+  const project = await makeProject('expiry');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+
+  // Create with a TTL; the response echoes an expires_at.
+  const share = await request(app).post(`/api/${project}/shares`).send({ scope: 'project', expiresInDays: 7 });
+  assert.equal(share.status, 201);
+  assert.ok(share.body.expires_at, 'expiry is set');
+
+  // Still valid right now.
+  const ok = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(ok.status, 200);
+
+  // Backdate the expiry to simulate the link aging out.
+  await getDB().collection('shares').updateOne(
+    { token: share.body.token },
+    { $set: { expires_at: new Date(Date.now() - 1000) } }
+  );
+
+  const expired = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(expired.status, 410, 'expired link is gone');
+
+  // And it was cleaned up (a second read is a plain 404).
+  const gone = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(gone.status, 404);
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

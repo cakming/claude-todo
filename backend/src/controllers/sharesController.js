@@ -38,16 +38,24 @@ export async function createShare(req, res) {
       pageId = rawId;
     }
 
+    // Optional expiry: expiresInDays (a positive number) sets expires_at.
+    let expiresAt = null;
+    const days = Number(req.body?.expiresInDays);
+    if (Number.isFinite(days) && days > 0) {
+      expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    }
+
     const token = crypto.randomBytes(16).toString('hex');
     await getDB().collection(SHARES).insertOne({
       token,
       project,
       scope,
       page_id: pageId,
-      created_at: new Date()
+      created_at: new Date(),
+      expires_at: expiresAt
     });
 
-    res.status(201).json({ success: true, token, scope, path: `/s/${token}` });
+    res.status(201).json({ success: true, token, scope, path: `/s/${token}`, expires_at: expiresAt });
   } catch (error) {
     console.error('Error creating share:', error);
     res.status(500).json({ success: false, error: 'Failed to create share' });
@@ -100,6 +108,12 @@ export async function getPublicShare(req, res) {
     const share = await getDB().collection(SHARES).findOne({ token });
     if (!share) {
       return res.status(404).json({ success: false, error: 'Share not found' });
+    }
+
+    // Reject (and clean up) expired links.
+    if (share.expires_at && new Date(share.expires_at).getTime() < Date.now()) {
+      await getDB().collection(SHARES).deleteOne({ token });
+      return res.status(410).json({ success: false, error: 'This share link has expired' });
     }
 
     const collection = getProjectCollection(share.project);
