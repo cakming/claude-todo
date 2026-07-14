@@ -5,6 +5,7 @@ import { exchangeApi } from '../../services/api';
 import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
 import { isDark, toggleTheme } from '../../utils/theme';
+import { createAndCopyShare } from '../../utils/share';
 
 export default function Header() {
   const { projects, currentProject, setCurrentProject, createProject, showToast } = useApp();
@@ -124,6 +125,13 @@ export default function Header() {
                     title="Import project from JSON (replaces current contents)"
                   >
                     Import
+                  </button>
+                  <button
+                    onClick={() => createAndCopyShare({ project: currentProject, scope: 'project', showToast })}
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Create a public read-only link to this project"
+                  >
+                    Share
                   </button>
                   <input
                     ref={fileRef}

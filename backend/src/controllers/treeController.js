@@ -4,50 +4,47 @@ import { DOC_TYPES } from '../models/schemas.js';
 import { calculateProgress } from './statusController.js';
 
 /**
+ * Build the full epic -> feature -> task tree (with progress) for a project
+ * collection. Shared by the tree endpoint and the public share endpoint.
+ */
+export async function buildProjectTree(collection) {
+  const epics = await collection.find({ type: DOC_TYPES.EPIC, deleted_at: null }).toArray();
+
+  return Promise.all(
+    epics.map(async (epic) => {
+      const features = await collection.find({
+        type: DOC_TYPES.FEATURE,
+        epic_id: epic._id,
+        deleted_at: null
+      }).toArray();
+
+      const featuresWithTasks = await Promise.all(
+        features.map(async (feature) => {
+          const tasks = await collection.find({
+            type: DOC_TYPES.TASK,
+            feature_id: feature._id,
+            deleted_at: null
+          }).toArray();
+
+          const progress = await calculateProgress(collection, feature._id, DOC_TYPES.FEATURE);
+          return { ...feature, tasks, progress };
+        })
+      );
+
+      const progress = await calculateProgress(collection, epic._id, DOC_TYPES.EPIC);
+      return { ...epic, features: featuresWithTasks, progress };
+    })
+  );
+}
+
+/**
  * Build tree structure for entire project
  */
 export async function getProjectTree(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-
-    // Get all epics
-    const epics = await collection.find({ type: DOC_TYPES.EPIC }).toArray();
-
-    // Build tree with features and tasks
-    const tree = await Promise.all(
-      epics.map(async (epic) => {
-        const features = await collection.find({
-          type: DOC_TYPES.FEATURE,
-          epic_id: epic._id
-        }).toArray();
-
-        const featuresWithTasks = await Promise.all(
-          features.map(async (feature) => {
-            const tasks = await collection.find({
-              type: DOC_TYPES.TASK,
-              feature_id: feature._id
-            }).toArray();
-
-            const progress = await calculateProgress(collection, feature._id, DOC_TYPES.FEATURE);
-
-            return {
-              ...feature,
-              tasks,
-              progress
-            };
-          })
-        );
-
-        const progress = await calculateProgress(collection, epic._id, DOC_TYPES.EPIC);
-
-        return {
-          ...epic,
-          features: featuresWithTasks,
-          progress
-        };
-      })
-    );
+    const tree = await buildProjectTree(collection);
 
     res.json({
       success: true,

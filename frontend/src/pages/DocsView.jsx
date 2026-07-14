@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { pagesApi, uploadsApi } from '../services/api';
 import { renderMarkdown } from '../utils/markdown';
 import { undoDeleteToast } from '../utils/undo';
+import { createAndCopyShare } from '../utils/share';
 import Loading from '../components/Common/Loading';
 
 // A simple Notion-lite docs surface: per-project markdown pages with live
@@ -206,6 +207,15 @@ export default function DocsView() {
                   {showPreview ? 'Edit' : 'Preview'}
                 </button>
                 <div className="flex-1" />
+                {selectedId && (
+                  <button
+                    onClick={() => createAndCopyShare({ project: currentProject, scope: 'page', pageId: selectedId, showToast })}
+                    className="btn-secondary text-sm py-1"
+                    title="Create a public read-only link to this page"
+                  >
+                    Share
+                  </button>
+                )}
                 <button onClick={save} className="btn-primary text-sm py-1">Save</button>
                 {selectedId && (
                   <button onClick={remove} className="text-sm text-red-600 hover:text-red-700 px-2">

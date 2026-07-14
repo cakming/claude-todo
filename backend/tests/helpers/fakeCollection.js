@@ -20,6 +20,10 @@ export function makeCollection(initialDocs = []) {
     if (cond && typeof cond === 'object' && '$in' in cond) {
       return cond.$in.some((x) => String(x) === String(docVal));
     }
+    // Mongo semantics: { field: null } matches both null and missing fields.
+    if (cond === null) {
+      return docVal === null || docVal === undefined;
+    }
     return String(docVal) === String(cond);
   };
   const matches = (doc, query) =>

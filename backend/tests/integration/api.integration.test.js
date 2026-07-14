@@ -377,6 +377,52 @@ test('image upload stores to GridFS and serves it back; rejects non-images', asy
   assert.equal(cross.status, 404);
 });
 
+test('share links expose read-only project and page views publicly', async () => {
+  const project = await makeProject('shared');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'Public Epic' });
+  await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'Public Feature' });
+  const page = await request(app).post(`/api/${project}/pages`).send({ title: 'Public Doc', body: '# Hi' });
+
+  // Project share -> public tree.
+  const projShare = await request(app).post(`/api/${project}/shares`).send({ scope: 'project' });
+  assert.equal(projShare.status, 201);
+  assert.ok(projShare.body.path.startsWith('/s/'));
+
+  const pubProject = await request(app).get(`/api/public/${projShare.body.token}`);
+  assert.equal(pubProject.status, 200);
+  assert.equal(pubProject.body.scope, 'project');
+  assert.equal(pubProject.body.data[0].title, 'Public Epic');
+  assert.equal(pubProject.body.data[0].features[0].title, 'Public Feature');
+
+  // Page share -> public single page.
+  const pageShare = await request(app)
+    .post(`/api/${project}/shares`)
+    .send({ scope: 'page', pageId: page.body.data._id });
+  assert.equal(pageShare.status, 201);
+  const pubPage = await request(app).get(`/api/public/${pageShare.body.token}`);
+  assert.equal(pubPage.body.scope, 'page');
+  assert.equal(pubPage.body.data.title, 'Public Doc');
+  assert.equal(pubPage.body.data.body, '# Hi');
+
+  // A page share requires a valid pageId.
+  const badPage = await request(app).post(`/api/${project}/shares`).send({ scope: 'page' });
+  assert.equal(badPage.status, 400);
+
+  // Unknown token -> 404.
+  const missing = await request(app).get('/api/public/deadbeef');
+  assert.equal(missing.status, 404);
+
+  // Revoke kills public access.
+  const list = await request(app).get(`/api/${project}/shares`);
+  assert.equal(list.body.data.length, 2);
+  const revoke = await request(app).delete(`/api/${project}/shares/${projShare.body.token}`);
+  assert.equal(revoke.status, 200);
+  const afterRevoke = await request(app).get(`/api/public/${projShare.body.token}`);
+  assert.equal(afterRevoke.status, 404);
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

@@ -325,6 +325,41 @@ export const restoreApi = {
   }
 };
 
+// Share links API
+export const sharesApi = {
+  list: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (project, data = {}) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  revoke: async (project, token) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares/${token}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
+// Public (unauthenticated) read of a shared resource.
+export const publicApi = {
+  get: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/public/${token}`);
+    return handleResponse(response);
+  }
+};
+
 // Activity API
 export const activityApi = {
   get: async (project) => {

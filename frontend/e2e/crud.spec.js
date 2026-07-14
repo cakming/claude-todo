@@ -180,6 +180,27 @@ test('docs: create a page, upload an image, and preview markdown', async ({ page
   await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
 });
 
+test('sharing a project produces a working public read-only link', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Shared Epic');
+  await createFeature(page, 'Shared Epic', 'Shared Feature');
+
+  // Create a share link; the toast carries the URL (clipboard may be blocked).
+  await page.getByRole('button', { name: 'Share' }).click();
+  const toast = page.getByText(/Read-only link/);
+  await expect(toast).toBeVisible();
+  const url = (await toast.textContent()).match(/https?:\/\/\S+/)[0];
+
+  // The public link renders a standalone read-only view (no app chrome).
+  await page.goto(url);
+  await expect(page.getByText('Read-only · shared')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Shared Epic/ })).toBeVisible();
+  await expect(page.getByText('✨ Shared Feature')).toBeVisible();
+  // No editing affordances leak into the public view.
+  await expect(page.getByRole('button', { name: '+ Add Epic' })).toHaveCount(0);
+});
+
 test('activity feed lists recent changes', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

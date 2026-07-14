@@ -23,8 +23,10 @@ import activityRoutes from './routes/activity.js';
 import adminRoutes from './routes/admin.js';
 import pageRoutes from './routes/pages.js';
 import uploadRoutes from './routes/uploads.js';
+import shareRoutes from './routes/shares.js';
 import { exportProject, importProject } from './controllers/exchangeController.js';
 import { restoreItems } from './controllers/restoreController.js';
+import { getPublicShare } from './controllers/sharesController.js';
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +77,9 @@ app.use('/api/auth/forgot-password', authLimiter);
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
 
+// Public, unauthenticated read of a shared project/page by token.
+app.get('/api/public/:token', getPublicShare);
+
 // Admin routes (require the 'admin' role when auth is enabled)
 app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
@@ -88,6 +93,7 @@ app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
 app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
+app.use('/api/:project/shares', authenticate, validateProject, shareRoutes);
 // Uploads apply auth per-route (POST authed, GET public) so image tags load.
 app.use('/api/:project/uploads', validateProject, uploadRoutes);
 
