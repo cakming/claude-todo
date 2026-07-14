@@ -395,6 +395,55 @@ Delete a task.
 
 ---
 
+## Docs (Pages)
+
+Free-form markdown notes attached to a project, separate from the
+epic/feature/task tree.
+
+### GET /api/:project/pages
+
+List a project's pages (newest updated first). Accepts `?search=` (matches
+title/body).
+
+### GET /api/:project/pages/:id
+
+Get a single page.
+
+### POST /api/:project/pages
+
+Create a page. Body: `{ "title": "...", "body": "markdown..." }` (`title`
+required).
+
+### PUT /api/:project/pages/:id
+
+Update a page's `title` and/or `body`.
+
+### DELETE /api/:project/pages/:id
+
+Delete a page. Returns `removed` (the deleted doc) so it can be restored via
+`POST /api/:project/restore`.
+
+---
+
+## Uploads (Images)
+
+### POST /api/:project/uploads
+
+Upload an image (multipart form field `file`; images only, 5 MB max). Stored in
+GridFS. Requires auth when auth is enabled.
+
+**Response:**
+```json
+{ "success": true, "id": "...", "url": "/api/my_project/uploads/..." }
+```
+
+### GET /api/:project/uploads/:id
+
+Stream a stored image. **Public** (no auth) so `<img>` tags load; ids are
+unguessable and scoped to the project the file was uploaded under.
+
+---
+
 ## Tree View
 
 Get hierarchical tree structure with progress indicators.
