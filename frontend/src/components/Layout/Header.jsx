@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { exchangeApi } from '../../services/api';
 import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
+import ShareModal from '../Common/ShareModal';
 import { isDark, toggleTheme } from '../../utils/theme';
-import { createAndCopyShare } from '../../utils/share';
 
 export default function Header() {
   const { projects, currentProject, setCurrentProject, createProject, showToast } = useApp();
@@ -15,6 +15,7 @@ export default function Header() {
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(isDark());
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const fileRef = useRef(null);
 
   const handleExport = async () => {
@@ -127,9 +128,9 @@ export default function Header() {
                     Import
                   </button>
                   <button
-                    onClick={() => createAndCopyShare({ project: currentProject, scope: 'project', showToast })}
+                    onClick={() => setShowShareModal(true)}
                     className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-                    title="Create a public read-only link to this project"
+                    title="Manage public read-only links to this project"
                   >
                     Share
                   </button>
@@ -220,6 +221,11 @@ export default function Header() {
       <ChangePasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
+      />
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
       />
     </>
   );

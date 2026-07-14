@@ -202,25 +202,35 @@ test('docs: create a page, upload an image, and preview markdown', async ({ page
   await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
 });
 
-test('sharing a project produces a working public read-only link', async ({ page }) => {
+test('share management: create a link, use it, then revoke it', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
   await createEpic(page, 'Shared Epic');
   await createFeature(page, 'Shared Epic', 'Shared Feature');
 
-  // Create a share link; the toast carries the URL (clipboard may be blocked).
+  // Create a link from the Share management modal.
   await page.getByRole('button', { name: 'Share' }).click();
-  const toast = page.getByText(/Read-only link/);
-  await expect(toast).toBeVisible();
-  const url = (await toast.textContent()).match(/https?:\/\/\S+/)[0];
+  await expect(page.getByRole('heading', { name: 'Share links' })).toBeVisible();
+  await page.getByRole('button', { name: 'Create link' }).click();
+
+  const linkText = await page.getByText(/\/s\/[a-f0-9]{32}/).first().textContent();
+  const url = linkText.match(/https?:\/\/\S+/)[0];
 
   // The public link renders a standalone read-only view (no app chrome).
   await page.goto(url);
   await expect(page.getByText('Read-only · shared')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Shared Epic/ })).toBeVisible();
   await expect(page.getByText('✨ Shared Feature')).toBeVisible();
-  // No editing affordances leak into the public view.
   await expect(page.getByRole('button', { name: '+ Add Epic' })).toHaveCount(0);
+
+  // Revoke it from the modal; the link then stops working.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Revoke' }).click();
+  await expect(page.getByText(/\/s\/[a-f0-9]{32}/)).toHaveCount(0);
+
+  await page.goto(url);
+  await expect(page.getByRole('heading', { name: 'Link unavailable' })).toBeVisible();
 });
 
 test('activity feed lists recent changes', async ({ page }) => {
