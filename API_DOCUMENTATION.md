@@ -395,6 +395,29 @@ Delete a task.
 
 ---
 
+## Trash (soft-delete)
+
+Deleting an epic, feature, task, or page **soft-deletes** it: the item (and its
+cascaded children) are flagged and hidden from all reads, but retained under a
+shared `batch` id so they can be restored or purged. Every delete response
+includes that `batch`.
+
+### GET /api/:project/trash
+
+List trashed items grouped by delete batch (newest first). Each entry:
+`{ batch, deleted_at, count, label, type }`.
+
+### POST /api/:project/trash/restore
+
+Restore a batch (the undo). Body: `{ "batch": "..." }`. Recomputes affected
+parent statuses.
+
+### DELETE /api/:project/trash/:batch
+
+Permanently delete a batch. Use `:batch = all` to empty the whole trash.
+
+---
+
 ## Docs (Pages)
 
 Free-form markdown notes attached to a project, separate from the

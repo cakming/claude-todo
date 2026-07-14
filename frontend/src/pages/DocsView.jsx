@@ -96,7 +96,7 @@ export default function DocsView() {
     try {
       const res = await pagesApi.delete(currentProject, selectedId);
       showToast('Page deleted', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadPages }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadPages }));
       closeEditor();
       loadPages();
     } catch (e) {

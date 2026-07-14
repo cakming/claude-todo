@@ -11,8 +11,9 @@ export async function getEpics(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-    // Optional ?search= (title/desc) and ?status= filters.
-    const query = applyListFilters({ type: DOC_TYPES.EPIC }, req.query);
+    // Optional ?search= (title/desc) and ?status= filters. Trashed items are
+    // excluded (deleted_at: null matches both null and missing).
+    const query = applyListFilters({ type: DOC_TYPES.EPIC, deleted_at: null }, req.query);
 
     // Optional pagination: ?limit=N&page=P. Without `limit`, return everything
     // (backward compatible).
@@ -59,7 +60,8 @@ export async function getEpicById(req, res) {
 
     const epic = await collection.findOne({
       _id: new ObjectId(id),
-      type: DOC_TYPES.EPIC
+      type: DOC_TYPES.EPIC,
+      deleted_at: null
     });
 
     if (!epic) {
@@ -180,54 +182,43 @@ export async function deleteEpic(req, res) {
 
     const epicId = new ObjectId(id);
 
-    // Capture the title before deletion for the activity log.
-    const epicToDelete = await collection.findOne({ _id: epicId, type: DOC_TYPES.EPIC });
-
-    // Find all features belonging to this epic
-    const features = await collection.find({
-      type: DOC_TYPES.FEATURE,
-      epic_id: epicId
-    }).toArray();
-
-    // Capture child tasks before deleting so the client can undo the cascade.
-    const featureIds = features.map(f => f._id);
-    const tasks = featureIds.length > 0
-      ? await collection.find({ type: DOC_TYPES.TASK, feature_id: { $in: featureIds } }).toArray()
-      : [];
-
-    // Delete all tasks belonging to these features
-    if (featureIds.length > 0) {
-      await collection.deleteMany({
-        type: DOC_TYPES.TASK,
-        feature_id: { $in: featureIds }
-      });
-    }
-
-    // Delete all features
-    await collection.deleteMany({
-      type: DOC_TYPES.FEATURE,
-      epic_id: epicId
-    });
-
-    // Delete the epic
-    const result = await collection.deleteOne({
-      _id: epicId,
-      type: DOC_TYPES.EPIC
-    });
-
-    if (result.deletedCount === 0) {
+    // Only act on a live (non-trashed) epic.
+    const epicToDelete = await collection.findOne({ _id: epicId, type: DOC_TYPES.EPIC, deleted_at: null });
+    if (!epicToDelete) {
       return res.status(404).json({
         success: false,
         error: 'Epic not found'
       });
     }
 
-    await logActivity(project, { action: 'deleted', item_type: 'epic', title: epicToDelete?.title });
+    // Soft-delete the epic and its whole subtree under one batch, so the trash
+    // can restore or purge them together.
+    const batch = new ObjectId();
+    const deleted_at = new Date();
+    const trash = { $set: { deleted_at, deleted_batch: batch } };
+
+    const features = await collection.find({
+      type: DOC_TYPES.FEATURE,
+      epic_id: epicId,
+      deleted_at: null
+    }).toArray();
+    const featureIds = features.map(f => f._id);
+
+    if (featureIds.length > 0) {
+      await collection.updateMany(
+        { type: DOC_TYPES.TASK, feature_id: { $in: featureIds }, deleted_at: null },
+        trash
+      );
+      await collection.updateMany({ type: DOC_TYPES.FEATURE, epic_id: epicId, deleted_at: null }, trash);
+    }
+    await collection.updateOne({ _id: epicId, type: DOC_TYPES.EPIC }, trash);
+
+    await logActivity(project, { action: 'deleted', item_type: 'epic', title: epicToDelete.title });
 
     res.json({
       success: true,
       message: 'Epic and all related features and tasks deleted successfully',
-      removed: [epicToDelete, ...features, ...tasks].filter(Boolean)
+      batch
     });
   } catch (error) {
     console.error('Error deleting epic:', error);

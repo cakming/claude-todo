@@ -266,7 +266,7 @@ test('bulk status and bulk delete update tasks and their parent feature', async 
   assert.equal(bad.status, 400);
 });
 
-test('deleting an epic returns the removed docs and they can be restored (undo)', async () => {
+test('deleting an epic trashes its subtree; it can be restored or purged', async () => {
   const project = await makeProject('undo');
   const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
   const epicId = epic.body.data._id;
@@ -279,28 +279,50 @@ test('deleting an epic returns the removed docs and they can be restored (undo)'
 
   const del = await request(app).delete(`/api/${project}/epics/${epicId}`);
   assert.equal(del.status, 200);
-  assert.equal(del.body.removed.length, 3, 'epic + feature + task returned for undo');
+  assert.ok(del.body.batch, 'delete returns a batch id');
 
-  // Project is empty after delete.
+  // Project reads are empty after delete, but the subtree sits in trash.
   let tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 0);
 
-  // Restore re-inserts everything with original ids and relationships intact.
-  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
-  assert.equal(restore.status, 200);
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 1, 'one restorable batch');
+  assert.equal(trash.body.data[0].count, 3, 'epic + feature + task grouped');
+  assert.equal(trash.body.data[0].type, 'epic', 'represented by the epic');
+  assert.equal(trash.body.data[0].batch, del.body.batch);
+
+  // Restore brings the whole subtree back with ids/relationships intact.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
   assert.equal(restore.body.restored, 3);
 
   tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 1, 'epic is back');
   assert.equal(tree.body.data[0]._id, epicId, 'same id preserved');
-  assert.equal(tree.body.data[0].features[0].title, 'F', 'feature restored under epic');
-  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T', 'task restored under feature');
+  assert.equal(tree.body.data[0].features[0].title, 'F');
+  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T');
 
-  // Restore is idempotent and validates input.
-  const again = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
-  assert.equal(again.body.restored, 3, 'double-undo is harmless');
-  const bad = await request(app).post(`/api/${project}/restore`).send({ items: [] });
-  assert.equal(bad.status, 400);
+  // Trash is empty again; restoring a missing batch 404s; bad input 400s.
+  const emptyTrash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(emptyTrash.body.data.length, 0);
+  const badRestore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
+  assert.equal(badRestore.status, 404, 'nothing left to restore');
+  const noBatch = await request(app).post(`/api/${project}/trash/restore`).send({});
+  assert.equal(noBatch.status, 400);
+});
+
+test('purging trash permanently removes the batch', async () => {
+  const project = await makeProject('purge');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const del = await request(app).delete(`/api/${project}/epics/${epic.body.data._id}`);
+
+  const purge = await request(app).delete(`/api/${project}/trash/${del.body.batch}`);
+  assert.equal(purge.body.purged, 1);
+
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 0, 'batch is gone for good');
+  // A purged batch can no longer be restored.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
+  assert.equal(restore.status, 404);
 });
 
 test('doc pages: full CRUD plus undo of a delete', async () => {
@@ -331,13 +353,13 @@ test('doc pages: full CRUD plus undo of a delete', async () => {
   const found = await request(app).get(`/api/${project}/pages?search=design`);
   assert.equal(found.body.data.length, 1);
 
-  // Delete returns the removed doc; restore brings it back.
+  // Delete trashes the page; restore-from-trash brings it back.
   const del = await request(app).delete(`/api/${project}/pages/${pageId}`);
-  assert.equal(del.body.removed.length, 1);
+  assert.ok(del.body.batch);
   const gone = await request(app).get(`/api/${project}/pages`);
   assert.equal(gone.body.data.length, 0);
 
-  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
   assert.equal(restore.body.restored, 1);
   const back = await request(app).get(`/api/${project}/pages`);
   assert.equal(back.body.data.length, 1);
@@ -441,7 +463,10 @@ test('deleting an epic cascades to its features and tasks', async () => {
   const tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 0, 'no epics remain');
 
-  // The whole project collection should be empty of documents now.
-  const remaining = await getDB().collection(`project_${project}`).countDocuments();
-  assert.equal(remaining, 0, 'features and tasks should be gone too');
+  // Soft-delete: docs still exist but none are live (all trashed together).
+  const coll = getDB().collection(`project_${project}`);
+  const live = await coll.countDocuments({ deleted_at: null });
+  assert.equal(live, 0, 'features and tasks should all be trashed too');
+  const trashed = await coll.countDocuments({ deleted_at: { $ne: null } });
+  assert.equal(trashed, 3, 'epic + feature + task sit in trash');
 });

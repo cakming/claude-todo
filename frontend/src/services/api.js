@@ -313,13 +313,28 @@ export const uploadsApi = {
   }
 };
 
-// Restore (undo delete) API
-export const restoreApi = {
-  restore: async (project, items) => {
-    const response = await fetch(`${API_BASE_URL}/${project}/restore`, {
+// Trash (soft-delete) API
+export const trashApi = {
+  list: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  restore: async (project, batch) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash/restore`, {
       method: 'POST',
       headers: getDefaultHeaders(),
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ batch })
+    });
+    return handleResponse(response);
+  },
+
+  purge: async (project, batch) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash/${batch}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
     return handleResponse(response);
   }

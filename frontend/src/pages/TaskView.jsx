@@ -102,7 +102,7 @@ export default function TaskView() {
     try {
       const res = await tasksApi.bulkDelete(currentProject, selectedIds);
       showToast(`${selectedIds.length} task(s) deleted`, 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       setSelectedIds([]);
       loadData();
     } catch (e) {
@@ -205,7 +205,7 @@ export default function TaskView() {
     try {
       const res = await tasksApi.delete(currentProject, task._id);
       showToast('Task deleted successfully', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');

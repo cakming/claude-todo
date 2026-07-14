@@ -113,7 +113,7 @@ export default function FeatureView() {
     try {
       const res = await featuresApi.delete(currentProject, feature._id);
       showToast('Feature deleted successfully', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');

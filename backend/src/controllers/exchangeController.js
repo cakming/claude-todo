@@ -10,7 +10,7 @@ export async function exportProject(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-    const data = await collection.find({ type: { $in: ITEM_TYPES } }).toArray();
+    const data = await collection.find({ type: { $in: ITEM_TYPES }, deleted_at: null }).toArray();
     res.json({ success: true, project, exportedAt: new Date(), data });
   } catch (error) {
     console.error('Export error:', error);

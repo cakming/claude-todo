@@ -70,7 +70,8 @@ export async function getEpicTree(req, res) {
     // Get the epic
     const epic = await collection.findOne({
       _id: new ObjectId(id),
-      type: DOC_TYPES.EPIC
+      type: DOC_TYPES.EPIC,
+      deleted_at: null
     });
 
     if (!epic) {
@@ -83,7 +84,8 @@ export async function getEpicTree(req, res) {
     // Get all features for this epic
     const features = await collection.find({
       type: DOC_TYPES.FEATURE,
-      epic_id: epic._id
+      epic_id: epic._id,
+      deleted_at: null
     }).toArray();
 
     // Get tasks for each feature
@@ -91,7 +93,8 @@ export async function getEpicTree(req, res) {
       features.map(async (feature) => {
         const tasks = await collection.find({
           type: DOC_TYPES.TASK,
-          feature_id: feature._id
+          feature_id: feature._id,
+          deleted_at: null
         }).toArray();
 
         const progress = await calculateProgress(collection, feature._id, DOC_TYPES.FEATURE);

@@ -64,6 +64,28 @@ test('undo restores a deleted epic and its children', async ({ page }) => {
   await expect(page.getByText('Undoable Feature')).toBeVisible();
 });
 
+test('trash: a deleted epic can be restored from the Trash view', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Trashable Epic');
+
+  await cardMenuAction(page, 'Trashable Epic', 'Delete');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
+
+  // The deleted epic sits in the persistent Trash view.
+  await page.getByRole('button', { name: '🗑 Trash' }).click();
+  await expect(page.getByText('📊 Trashable Epic')).toBeVisible();
+
+  // Restoring empties the trash and brings the epic back.
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByRole('heading', { name: 'Trash is empty' })).toBeVisible();
+
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await expect(page.getByRole('heading', { name: /Trashable Epic/ })).toBeVisible();
+});
+
 test('search filters the epic list', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

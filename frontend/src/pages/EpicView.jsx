@@ -116,7 +116,7 @@ export default function EpicView() {
     try {
       const res = await epicsApi.delete(currentProject, epic._id);
       showToast('Epic deleted successfully', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadEpics }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadEpics }));
       loadEpics();
     } catch (error) {
       showToast(error.message, 'error');

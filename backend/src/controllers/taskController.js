@@ -14,7 +14,7 @@ export async function getTasksByFeature(req, res) {
     const collection = getProjectCollection(project);
 
     const query = applyListFilters(
-      { type: DOC_TYPES.TASK, feature_id: new ObjectId(featureId) },
+      { type: DOC_TYPES.TASK, feature_id: new ObjectId(featureId), deleted_at: null },
       req.query
     );
     const tasks = await collection.find(query).toArray();
@@ -42,7 +42,8 @@ export async function getTaskById(req, res) {
 
     const task = await collection.findOne({
       _id: new ObjectId(id),
-      type: DOC_TYPES.TASK
+      type: DOC_TYPES.TASK,
+      deleted_at: null
     });
 
     if (!task) {
@@ -73,10 +74,11 @@ export async function createTask(req, res) {
     const { project, featureId } = req.params;
     const collection = getProjectCollection(project);
 
-    // Verify feature exists
+    // Verify feature exists (and isn't trashed)
     const feature = await collection.findOne({
       _id: new ObjectId(featureId),
-      type: DOC_TYPES.FEATURE
+      type: DOC_TYPES.FEATURE,
+      deleted_at: null
     });
 
     if (!feature) {
@@ -186,10 +188,12 @@ export async function bulkUpdateTaskStatus(req, res) {
 
     const collection = getProjectCollection(project);
     const objectIds = ids.map((id) => new ObjectId(id));
-    const tasks = await collection.find({ type: DOC_TYPES.TASK, _id: { $in: objectIds } }).toArray();
+    const tasks = await collection
+      .find({ type: DOC_TYPES.TASK, _id: { $in: objectIds }, deleted_at: null })
+      .toArray();
 
     await collection.updateMany(
-      { type: DOC_TYPES.TASK, _id: { $in: objectIds } },
+      { type: DOC_TYPES.TASK, _id: { $in: objectIds }, deleted_at: null },
       { $set: { status, updated_at: new Date() } }
     );
 
@@ -216,14 +220,20 @@ export async function bulkDeleteTasks(req, res) {
 
     const collection = getProjectCollection(project);
     const objectIds = ids.map((id) => new ObjectId(id));
-    const tasks = await collection.find({ type: DOC_TYPES.TASK, _id: { $in: objectIds } }).toArray();
+    const tasks = await collection
+      .find({ type: DOC_TYPES.TASK, _id: { $in: objectIds }, deleted_at: null })
+      .toArray();
 
-    await collection.deleteMany({ type: DOC_TYPES.TASK, _id: { $in: objectIds } });
+    const batch = new ObjectId();
+    await collection.updateMany(
+      { type: DOC_TYPES.TASK, _id: { $in: objectIds }, deleted_at: null },
+      { $set: { deleted_at: new Date(), deleted_batch: batch } }
+    );
 
     await recomputeParents(collection, tasks);
     await logActivity(project, { action: 'deleted', item_type: 'task', title: `${tasks.length} tasks` });
-    // Return the removed docs so the client can offer an undo (restore).
-    res.json({ success: true, deleted: tasks.length, removed: tasks });
+    // Return the batch id so the client can offer an undo (restore from trash).
+    res.json({ success: true, deleted: tasks.length, batch });
   } catch (error) {
     console.error('Error bulk-deleting tasks:', error);
     res.status(500).json({ success: false, error: 'Failed to bulk-delete tasks' });
@@ -251,10 +261,11 @@ export async function deleteTask(req, res) {
 
     const taskId = new ObjectId(id);
 
-    // Get the task to know its feature
+    // Get the task to know its feature (must be live)
     const task = await collection.findOne({
       _id: taskId,
-      type: DOC_TYPES.TASK
+      type: DOC_TYPES.TASK,
+      deleted_at: null
     });
 
     if (!task) {
@@ -264,11 +275,12 @@ export async function deleteTask(req, res) {
       });
     }
 
-    // Delete the task
-    await collection.deleteOne({
-      _id: taskId,
-      type: DOC_TYPES.TASK
-    });
+    // Soft-delete the task under its own batch.
+    const batch = new ObjectId();
+    await collection.updateOne(
+      { _id: taskId, type: DOC_TYPES.TASK },
+      { $set: { deleted_at: new Date(), deleted_batch: batch } }
+    );
 
     // Update parent feature status
     await updateParentStatus(collection, task.feature_id, DOC_TYPES.FEATURE);
@@ -278,7 +290,7 @@ export async function deleteTask(req, res) {
     res.json({
       success: true,
       message: 'Task deleted successfully',
-      removed: [task]
+      batch
     });
   } catch (error) {
     console.error('Error deleting task:', error);

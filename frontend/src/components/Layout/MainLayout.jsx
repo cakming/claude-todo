@@ -8,6 +8,7 @@ import TaskView from '../../pages/TaskView';
 import TreeView from '../../pages/TreeView';
 import DocsView from '../../pages/DocsView';
 import ActivityView from '../../pages/ActivityView';
+import TrashView from '../../pages/TrashView';
 import AdminUsersView from '../../pages/AdminUsersView';
 import EmptyState from '../Common/EmptyState';
 
@@ -22,7 +23,7 @@ export default function MainLayout() {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag) || e.metaKey || e.ctrlKey || e.altKey) {
         return;
       }
-      const map = { 1: 'epics', 2: 'features', 3: 'tasks', 4: 'tree', 5: 'docs', 6: 'activity' };
+      const map = { 1: 'epics', 2: 'features', 3: 'tasks', 4: 'tree', 5: 'docs', 6: 'activity', 7: 'trash' };
       if (map[e.key]) setCurrentView(map[e.key]);
     };
     window.addEventListener('keydown', handler);
@@ -58,6 +59,8 @@ export default function MainLayout() {
         return <DocsView />;
       case 'activity':
         return <ActivityView />;
+      case 'trash':
+        return <TrashView />;
       default:
         return <EpicView />;
     }
