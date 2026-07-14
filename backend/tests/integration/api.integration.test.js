@@ -303,6 +303,80 @@ test('deleting an epic returns the removed docs and they can be restored (undo)'
   assert.equal(bad.status, 400);
 });
 
+test('doc pages: full CRUD plus undo of a delete', async () => {
+  const project = await makeProject('docs');
+
+  // Empty to start.
+  const empty = await request(app).get(`/api/${project}/pages`);
+  assert.equal(empty.body.data.length, 0);
+
+  // Create requires a title.
+  const noTitle = await request(app).post(`/api/${project}/pages`).send({ body: 'x' });
+  assert.equal(noTitle.status, 400);
+
+  const created = await request(app)
+    .post(`/api/${project}/pages`)
+    .send({ title: 'Design Notes', body: '# Hello' });
+  assert.equal(created.status, 201);
+  const pageId = created.body.data._id;
+  assert.equal(created.body.data.type, 'page');
+
+  // Update title/body.
+  const updated = await request(app)
+    .put(`/api/${project}/pages/${pageId}`)
+    .send({ body: '# Hello\n\nUpdated.' });
+  assert.equal(updated.body.data.body, '# Hello\n\nUpdated.');
+
+  // Search matches on title/body.
+  const found = await request(app).get(`/api/${project}/pages?search=design`);
+  assert.equal(found.body.data.length, 1);
+
+  // Delete returns the removed doc; restore brings it back.
+  const del = await request(app).delete(`/api/${project}/pages/${pageId}`);
+  assert.equal(del.body.removed.length, 1);
+  const gone = await request(app).get(`/api/${project}/pages`);
+  assert.equal(gone.body.data.length, 0);
+
+  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(restore.body.restored, 1);
+  const back = await request(app).get(`/api/${project}/pages`);
+  assert.equal(back.body.data.length, 1);
+  assert.equal(back.body.data[0]._id, pageId);
+});
+
+test('image upload stores to GridFS and serves it back; rejects non-images', async () => {
+  const project = await makeProject('imgs');
+  // 1x1 transparent PNG.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  const up = await request(app)
+    .post(`/api/${project}/uploads`)
+    .attach('file', png, { filename: 'dot.png', contentType: 'image/png' });
+  assert.equal(up.status, 201);
+  assert.ok(up.body.url.startsWith(`/api/${project}/uploads/`));
+
+  // Serve it back with the right content type.
+  const get = await request(app).get(up.body.url);
+  assert.equal(get.status, 200);
+  assert.match(get.headers['content-type'], /image\/png/);
+  assert.equal(get.body.length, png.length);
+
+  // Non-image is rejected.
+  const bad = await request(app)
+    .post(`/api/${project}/uploads`)
+    .attach('file', Buffer.from('not an image'), { filename: 'x.txt', contentType: 'text/plain' });
+  assert.equal(bad.status, 400);
+
+  // Another project can't read this project's upload by id.
+  const other = await makeProject('imgs_other');
+  const id = up.body.url.split('/').pop();
+  const cross = await request(app).get(`/api/${other}/uploads/${id}`);
+  assert.equal(cross.status, 404);
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

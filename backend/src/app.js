@@ -21,6 +21,8 @@ import taskRoutes from './routes/tasks.js';
 import treeRoutes from './routes/tree.js';
 import activityRoutes from './routes/activity.js';
 import adminRoutes from './routes/admin.js';
+import pageRoutes from './routes/pages.js';
+import uploadRoutes from './routes/uploads.js';
 import { exportProject, importProject } from './controllers/exchangeController.js';
 import { restoreItems } from './controllers/restoreController.js';
 
@@ -85,6 +87,8 @@ app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
 app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
+app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
+app.use('/api/:project/uploads', authenticate, validateProject, uploadRoutes);
 
 // Project export / import (JSON).
 app.get('/api/:project/export', authenticate, validateProject, exportProject);

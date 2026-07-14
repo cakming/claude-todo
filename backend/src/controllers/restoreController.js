@@ -4,7 +4,7 @@ import { DOC_TYPES } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
 import { logActivity } from '../utils/activity.js';
 
-const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK];
+const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK, DOC_TYPES.PAGE];
 
 /**
  * Restore previously-deleted items (the undo of a delete). The client passes
