@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { pagesApi, uploadsApi } from '../services/api';
-import { renderMarkdown } from '../utils/markdown';
 import { undoDeleteToast } from '../utils/undo';
 import { createAndCopyShare } from '../utils/share';
 import Loading from '../components/Common/Loading';
+import RichEditor from '../components/Common/RichEditor';
 
-// A simple Notion-lite docs surface: per-project markdown pages with live
-// preview and image upload. Pages are separate from the epic/feature/task tree.
+// A Notion-lite docs surface: per-project pages edited in a block editor, with
+// image upload. Pages are separate from the epic/feature/task tree.
 export default function DocsView() {
   const { currentProject, showToast, refreshTick } = useApp();
   const [pages, setPages] = useState([]);
@@ -17,11 +17,7 @@ export default function DocsView() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const loadIdRef = useRef(0);
-  const fileInputRef = useRef(null);
-  const bodyRef = useRef(null);
 
   // Load on project change and (debounced) search.
   useEffect(() => {
@@ -55,7 +51,6 @@ export default function DocsView() {
     setTitle(page.title);
     setBody(page.body || '');
     setEditing(true);
-    setShowPreview(false);
   };
 
   const newPage = () => {
@@ -63,7 +58,6 @@ export default function DocsView() {
     setTitle('');
     setBody('');
     setEditing(true);
-    setShowPreview(false);
   };
 
   const closeEditor = () => {
@@ -104,26 +98,15 @@ export default function DocsView() {
     }
   };
 
-  const onImageSelected = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-selecting the same file later
-    if (!file) return;
-    setUploading(true);
+  // Upload an image and return its URL for the editor to embed.
+  const handleImageUpload = async (file) => {
     try {
       const { url } = await uploadsApi.uploadImage(currentProject, file);
-      const snippet = `\n![${file.name}](${url})\n`;
-      const el = bodyRef.current;
-      if (el && typeof el.selectionStart === 'number') {
-        const at = el.selectionStart;
-        setBody(body.slice(0, at) + snippet + body.slice(at));
-      } else {
-        setBody((b) => b + snippet);
-      }
       showToast('Image uploaded', 'success');
+      return url;
     } catch (err) {
       showToast(err.message, 'error');
-    } finally {
-      setUploading(false);
+      return null;
     }
   };
 
@@ -192,20 +175,6 @@ export default function DocsView() {
               />
 
               <div className="flex items-center gap-2 mb-3">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="btn-secondary text-sm py-1"
-                >
-                  {uploading ? 'Uploading…' : '🖼 Insert image'}
-                </button>
-                <button
-                  onClick={() => setShowPreview((p) => !p)}
-                  className="btn-secondary text-sm py-1"
-                  aria-pressed={showPreview}
-                >
-                  {showPreview ? 'Edit' : 'Preview'}
-                </button>
                 <div className="flex-1" />
                 {selectedId && (
                   <button
@@ -225,30 +194,9 @@ export default function DocsView() {
                 <button onClick={closeEditor} className="text-sm text-gray-600 hover:text-gray-800 px-2">
                   Close
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onImageSelected}
-                  className="hidden"
-                />
               </div>
 
-              {showPreview ? (
-                <div
-                  className="markdown-body min-h-[300px] px-1"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
-                />
-              ) : (
-                <textarea
-                  ref={bodyRef}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="Write in markdown… # Heading, **bold**, - lists, and uploaded images."
-                  aria-label="Page body"
-                  className="w-full min-h-[300px] px-3 py-2 font-mono text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              )}
+              <RichEditor value={body} onChange={setBody} onImageUpload={handleImageUpload} />
             </div>
           )}
         </div>
