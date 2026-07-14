@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ObjectId, GridFSBucket } from 'mongodb';
 import { getDB } from '../config/mongodb.js';
 
@@ -20,10 +21,14 @@ export async function uploadImage(req, res) {
       return res.status(400).json({ success: false, error: 'No file uploaded (field name must be "file")' });
     }
 
+    // A 128-bit random access token makes the public URL unguessable — unlike
+    // an ObjectId, which encodes a timestamp+counter and is partly enumerable.
+    const token = crypto.randomBytes(16).toString('hex');
+
     const bucket = getBucket();
     const uploadStream = bucket.openUploadStream(req.file.originalname || 'image', {
       contentType: req.file.mimetype,
-      metadata: { project }
+      metadata: { project, token }
     });
 
     uploadStream.on('error', (err) => {
@@ -31,8 +36,11 @@ export async function uploadImage(req, res) {
       if (!res.headersSent) res.status(500).json({ success: false, error: 'Failed to store image' });
     });
     uploadStream.on('finish', () => {
-      const id = uploadStream.id.toString();
-      res.status(201).json({ success: true, id, url: `/api/${project}/uploads/${id}` });
+      res.status(201).json({
+        success: true,
+        id: uploadStream.id.toString(),
+        url: `/api/${project}/uploads/${token}`
+      });
     });
 
     uploadStream.end(req.file.buffer);
@@ -48,26 +56,26 @@ export async function uploadImage(req, res) {
  */
 export async function getImage(req, res) {
   try {
-    const { project, id } = req.params;
+    const { project, ref } = req.params;
+    const bucket = getBucket();
 
-    let fileId;
-    try {
-      fileId = new ObjectId(id);
-    } catch (e) {
-      return res.status(400).json({ success: false, error: 'Invalid image id' });
+    // Look up by the random access token, scoped to the project.
+    let file = (await bucket.find({ 'metadata.token': ref, 'metadata.project': project }).toArray())[0];
+
+    // Backward compatibility: older URLs embed the GridFS ObjectId directly.
+    if (!file && /^[a-f0-9]{24}$/i.test(ref)) {
+      const legacy = (await bucket.find({ _id: new ObjectId(ref) }).toArray())[0];
+      if (legacy && legacy.metadata?.project === project) file = legacy;
     }
 
-    const bucket = getBucket();
-    const files = await bucket.find({ _id: fileId }).toArray();
-    const file = files[0];
-    if (!file || file.metadata?.project !== project) {
+    if (!file) {
       return res.status(404).json({ success: false, error: 'Image not found' });
     }
 
     res.set('Content-Type', file.contentType || 'application/octet-stream');
     res.set('Cache-Control', 'public, max-age=31536000, immutable');
 
-    const stream = bucket.openDownloadStream(fileId);
+    const stream = bucket.openDownloadStream(file._id);
     stream.on('error', () => {
       if (!res.headersSent) res.status(404).json({ success: false, error: 'Image not found' });
     });

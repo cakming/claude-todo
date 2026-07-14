@@ -31,6 +31,6 @@ function handleUpload(req, res, next) {
 // (which can't send an Authorization header) work. Ids are unguessable
 // ObjectIds scoped to the project.
 router.post('/', authenticate, handleUpload, uploadImage);
-router.get('/:id', getImage);
+router.get('/:ref', getImage);
 
 export default router;
