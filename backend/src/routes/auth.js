@@ -1,5 +1,13 @@
 import express from 'express';
-import { register, login, getProfile, verifyToken } from '../controllers/authController.js';
+import {
+  register,
+  login,
+  getProfile,
+  verifyToken,
+  changePassword,
+  forgotPassword,
+  resetPassword
+} from '../controllers/authController.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -31,5 +39,26 @@ router.get('/profile', authenticate, getProfile);
  * @access  Private (requires authentication)
  */
 router.get('/verify', authenticate, verifyToken);
+
+/**
+ * @route   POST /api/auth/change-password
+ * @desc    Change the current user's password
+ * @access  Private (requires authentication)
+ */
+router.post('/change-password', authenticate, changePassword);
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Email a password reset link
+ * @access  Public
+ */
+router.post('/forgot-password', forgotPassword);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset the password using an emailed token
+ * @access  Public
+ */
+router.post('/reset-password', resetPassword);
 
 export default router;

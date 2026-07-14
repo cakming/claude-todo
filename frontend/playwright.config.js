@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.spec.js',
+  testIgnore: '**/auth.spec.js', // auth flow runs under playwright.auth.config.js
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

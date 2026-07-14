@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -15,6 +16,7 @@ import Modal from '../components/Common/Modal';
 import Loading from '../components/Common/Loading';
 import EmptyState from '../components/Common/EmptyState';
 import { filterByQuery } from '../utils/helpers';
+import { undoDeleteToast } from '../utils/undo';
 
 const KANBAN_COLUMNS = [
   { id: 'todo', label: 'To Do', header: 'bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-200' },
@@ -24,12 +26,14 @@ const KANBAN_COLUMNS = [
 ];
 
 // A Kanban column that accepts dropped task cards.
-function DroppableColumn({ id, children }) {
+function DroppableColumn({ id, label, children }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
       data-testid={`column-${id}`}
+      role="list"
+      aria-label={label ? `${label} tasks` : undefined}
       className={`space-y-3 min-h-[80px] rounded-lg transition-colors ${
         isOver ? 'ring-2 ring-blue-400 bg-blue-50/40' : ''
       }`}
@@ -41,13 +45,20 @@ function DroppableColumn({ id, children }) {
 
 // A draggable wrapper around a task card. An 8px activation distance keeps the
 // card's status <select> and menu clickable.
-function DraggableTask({ id, children }) {
+function DraggableTask({ id, label, children }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.5 : 1 }
     : undefined;
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      aria-roledescription="Draggable task"
+      aria-label={label}
+      {...listeners}
+      {...attributes}
+    >
       {children}
     </div>
   );
@@ -62,7 +73,42 @@ export default function TaskView() {
   const [editingTask, setEditingTask] = useState(null);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' or 'list'
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
   const loadIdRef = useRef(0);
+
+  const toggleSelect = (task) => {
+    setSelectedIds((prev) =>
+      prev.includes(task._id) ? prev.filter((id) => id !== task._id) : [...prev, task._id]
+    );
+  };
+
+  const bulkMarkDone = async () => {
+    const ids = selectedIds;
+    const snapshot = tasks;
+    // Optimistic: flip the selected cards to Done immediately, then reconcile.
+    setTasks((ts) => ts.map((t) => (ids.includes(t._id) ? { ...t, status: 'done' } : t)));
+    setSelectedIds([]);
+    try {
+      await tasksApi.bulkStatus(currentProject, ids, 'done');
+      showToast(`${ids.length} task(s) marked done`, 'success');
+    } catch (e) {
+      setTasks(snapshot); // rollback
+      showToast(e.message, 'error');
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} selected task(s)?`)) return;
+    try {
+      const res = await tasksApi.bulkDelete(currentProject, selectedIds);
+      showToast(`${selectedIds.length} task(s) deleted`, 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+      setSelectedIds([]);
+      loadData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
 
   useEffect(() => {
     if (currentProject) {
@@ -157,8 +203,9 @@ export default function TaskView() {
     }
 
     try {
-      await tasksApi.delete(currentProject, task._id);
-      showToast('Task deleted successfully', 'success');
+      const res = await tasksApi.delete(currentProject, task._id);
+      showToast('Task deleted successfully', 'success',
+        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');
@@ -166,17 +213,27 @@ export default function TaskView() {
   };
 
   const handleStatusChange = async (task, newStatus) => {
+    const prev = task.status;
+    if (prev === newStatus) return;
+    // Optimistic: move the card right away (drag-drop and the status dropdown
+    // both land here). The server emits a realtime update that silently
+    // reconciles parent auto-status; on failure we roll the card back.
+    setTasks((ts) => ts.map((t) => (t._id === task._id ? { ...t, status: newStatus } : t)));
     try {
       await tasksApi.update(currentProject, task._id, { status: newStatus });
-      showToast('Task status updated', 'success');
-      loadData();
     } catch (error) {
+      setTasks((ts) => ts.map((t) => (t._id === task._id ? { ...t, status: prev } : t)));
       showToast(error.message, 'error');
     }
   };
 
   // Require a small drag distance so clicks on the card's controls still work.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // The KeyboardSensor lets keyboard users pick up a card (Space) and move it
+  // between columns with the arrow keys.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -278,6 +335,23 @@ export default function TaskView() {
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-900">{selectedIds.length} selected</span>
+          <div className="flex items-center space-x-3">
+            <button onClick={bulkMarkDone} className="btn-primary text-sm py-1">
+              Mark Done
+            </button>
+            <button onClick={bulkDelete} className="text-sm text-red-600 hover:text-red-700">
+              Delete
+            </button>
+            <button onClick={() => setSelectedIds([])} className="text-sm text-gray-600 hover:text-gray-800">
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'kanban' ? (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -288,9 +362,9 @@ export default function TaskView() {
                     {col.label} ({tasksByStatus[col.id].length})
                   </h3>
                 </div>
-                <DroppableColumn id={col.id}>
+                <DroppableColumn id={col.id} label={col.label}>
                   {tasksByStatus[col.id].map(task => (
-                    <DraggableTask key={task._id} id={task._id}>
+                    <DraggableTask key={task._id} id={task._id} label={`${task.title} (${col.label})`}>
                       <TaskCard
                         task={task}
                         featureName={task.featureName}
@@ -298,6 +372,8 @@ export default function TaskView() {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onStatusChange={handleStatusChange}
+                        selected={selectedIds.includes(task._id)}
+                        onToggleSelect={toggleSelect}
                       />
                     </DraggableTask>
                   ))}
@@ -317,6 +393,8 @@ export default function TaskView() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              selected={selectedIds.includes(task._id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>

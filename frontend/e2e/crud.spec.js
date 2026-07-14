@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createProject, createEpic, createFeature, createTask, cardMenuAction, resetDb } from './helpers.js';
+import { createProject, createEpic, createFeature, createTask, cardMenuAction, resetDb, clickUntil } from './helpers.js';
 
 test.beforeEach(async ({ request }) => {
   await resetDb(request);
@@ -44,6 +44,26 @@ test('deleting an epic cascades and empties the project', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'No Features Yet' })).toBeVisible();
 });
 
+test('undo restores a deleted epic and its children', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Undoable Epic');
+  await createFeature(page, 'Undoable Epic', 'Undoable Feature');
+
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await cardMenuAction(page, 'Undoable Epic', 'Delete');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
+
+  // The delete toast offers an Undo that restores the epic and its feature.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('heading', { name: /Undoable Epic/ })).toBeVisible();
+
+  await page.getByRole('button', { name: '✨ Features' }).click();
+  await expect(page.getByText('Undoable Feature')).toBeVisible();
+});
+
 test('search filters the epic list', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
@@ -56,6 +76,24 @@ test('search filters the epic list', async ({ page }) => {
 
   await search.fill('Search');
   await expect(page.getByRole('heading', { name: /Searchable Epic/ })).toBeVisible();
+});
+
+test('search reaches epics beyond the first page (server-side)', async ({ page, request }) => {
+  // Seed 12 epics; only the first 9 are loaded initially. A client-side filter
+  // would miss "Epic 12" — server-side search must find it.
+  await request.post('http://localhost:3001/api/projects', { data: { name: 'srv_search' } });
+  for (let i = 1; i <= 12; i++) {
+    await request.post('http://localhost:3001/api/srv_search/epics', {
+      data: { title: `Epic ${String(i).padStart(2, '0')}` }
+    });
+  }
+
+  await page.goto('/');
+  await expect(page.locator('.card')).toHaveCount(9); // first page only
+
+  await page.getByPlaceholder('Search epics...').fill('Epic 12');
+  await expect(page.getByRole('heading', { name: /Epic 12/ })).toBeVisible();
+  await expect(page.locator('.card')).toHaveCount(1);
 });
 
 test('dragging a task to the Done column changes its status', async ({ page }) => {
@@ -80,6 +118,66 @@ test('dragging a task to the Done column changes its status', async ({ page }) =
 
   await expect(page.getByText('Done (1)')).toBeVisible();
   await expect(page.getByText('To Do (0)')).toBeVisible();
+});
+
+test('bulk-selecting tasks and marking them done moves them together', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Bulk Epic');
+  await createFeature(page, 'Bulk Epic', 'Bulk Feature');
+  await createTask(page, 'Bulk Epic / Bulk Feature', 'Bulk Task 1');
+
+  // Add a second task under the same feature via the "+ Add Task" button.
+  await page.getByRole('button', { name: '+ Add Task' }).click();
+  await expect(page.getByRole('heading', { name: 'Create New Task' })).toBeVisible();
+  const featureSelect = page.locator('select').filter({ has: page.getByRole('option', { name: 'Select a feature' }) });
+  await featureSelect.selectOption({ label: 'Bulk Epic / Bulk Feature' });
+  await page.getByPlaceholder('Add item to cart API').fill('Bulk Task 2');
+  await page.getByRole('button', { name: 'Create Task' }).click();
+
+  await expect(page.getByText('To Do (2)')).toBeVisible();
+
+  // Select both, then mark them done in one action.
+  await page.getByLabel('Select Bulk Task 1').check();
+  await page.getByLabel('Select Bulk Task 2').check();
+  await expect(page.getByText('2 selected')).toBeVisible();
+  await page.getByRole('button', { name: 'Mark Done' }).click();
+
+  await expect(page.getByText('Done (2)')).toBeVisible();
+  await expect(page.getByText('To Do (0)')).toBeVisible();
+});
+
+test('docs: create a page, upload an image, and preview markdown', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+
+  await page.getByRole('button', { name: '📄 Docs' }).click();
+  await expect(page.getByRole('heading', { name: 'Docs' })).toBeVisible();
+
+  await page.getByRole('button', { name: '+ New Page' }).click();
+  await page.getByLabel('Page title').fill('My First Doc');
+  await page.getByLabel('Page body').fill('# Hello\n\nSome **bold** text.');
+
+  // Upload a 1x1 PNG through the hidden file input.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  await page.locator('input[accept="image/*"]').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByText('Image uploaded')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Page saved')).toBeVisible();
+
+  // The saved page appears in the list.
+  await expect(page.getByRole('button', { name: /My First Doc/ })).toBeVisible();
+
+  // Preview renders the markdown heading and the uploaded image actually loads.
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.locator('.markdown-body h1')).toHaveText('Hello');
+  const img = page.locator('.markdown-body img');
+  await expect(img).toHaveAttribute('src', /\/uploads\//);
+  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
 });
 
 test('activity feed lists recent changes', async ({ page }) => {
@@ -131,6 +229,75 @@ test('changes propagate to another tab in real time (websocket)', async ({ page,
   // ...and tab B sees it appear without any navigation or manual refresh.
   await expect(pageB.getByRole('heading', { name: /Pushed Epic/ })).toBeVisible();
   await pageB.close();
+});
+
+test('epics list paginates with a Load more button', async ({ page, request }) => {
+  // Seed 11 epics directly via the API for speed.
+  await request.post('http://localhost:3001/api/projects', { data: { name: 'paged' } });
+  for (let i = 1; i <= 11; i++) {
+    await request.post('http://localhost:3001/api/paged/epics', {
+      data: { title: `Epic ${String(i).padStart(2, '0')}` }
+    });
+  }
+
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Epics' })).toBeVisible();
+
+  // First page shows 9; Load more reveals the rest, then disappears.
+  await expect(page.locator('.card')).toHaveCount(9);
+  const loadMore = page.getByRole('button', { name: 'Load more' });
+  await expect(loadMore).toBeVisible();
+  await loadMore.click();
+  await expect(page.locator('.card')).toHaveCount(11);
+  await expect(loadMore).toHaveCount(0);
+});
+
+test('a task shows its due date and flags overdue', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Due Epic');
+  await createFeature(page, 'Due Epic', 'Due Feature');
+
+  await clickUntil(page, '✅ Tasks', () => page.getByRole('button', { name: 'Create First Task' }));
+  await clickUntil(page, 'Create First Task', () => page.getByRole('heading', { name: 'Create New Task' }));
+  const featSel = page.locator('select').filter({ has: page.getByRole('option', { name: 'Select a feature' }) });
+  await featSel.selectOption({ label: 'Due Epic / Due Feature' });
+  await page.getByPlaceholder('Add item to cart API').fill('Task with due');
+  await page.locator('input[type="date"]').fill('2020-01-01'); // in the past -> overdue
+  await page.getByRole('button', { name: 'Create Task' }).click();
+
+  const card = page.locator('.card', { hasText: 'Task with due' });
+  await expect(card.getByText(/Due 2020-01-01/)).toBeVisible();
+  await expect(card.getByText(/overdue/)).toBeVisible();
+});
+
+test('export then import round-trips a project', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Portable Epic');
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export' }).click()
+  ]);
+  const filePath = await download.path();
+
+  // New, empty project, then import the exported file into it.
+  await createProject(page);
+  await page.locator('input[type="file"]').setInputFiles(filePath);
+
+  // Import replaces contents and pushes a realtime update -> the epic appears.
+  await expect(page.getByRole('heading', { name: /Portable Epic/ })).toBeVisible();
+});
+
+test('number keys switch views', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+
+  await page.keyboard.press('3');
+  await expect(page.getByRole('heading', { name: 'No Tasks Yet' })).toBeVisible();
+  await page.keyboard.press('1');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
 });
 
 test('tree view renders the full hierarchy', async ({ page }) => {

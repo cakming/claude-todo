@@ -1,19 +1,57 @@
-import { useEffect } from 'react';
+import { useEffect, useId, useRef } from 'react';
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+  const dialogRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+  const titleId = useId();
+
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
+    if (!isOpen) return;
+
+    // Remember what was focused so we can restore it when the modal closes.
+    restoreFocusRef.current = document.activeElement;
+
+    // Move focus into the dialog (first focusable element, else the dialog).
+    const dialog = dialogRef.current;
+    const focusables = dialog?.querySelectorAll(FOCUSABLE);
+    (focusables?.[0] || dialog)?.focus();
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Trap Tab focus inside the dialog.
+      if (e.key === 'Tab') {
+        const items = dialog?.querySelectorAll(FOCUSABLE);
+        if (!items || items.length === 0) {
+          e.preventDefault();
+          dialog?.focus();
+          return;
+        }
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
-    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
+      // Return focus to the trigger for keyboard/screen-reader users.
+      restoreFocusRef.current?.focus?.();
     };
   }, [isOpen, onClose]);
 
@@ -35,12 +73,20 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       />
 
       {/* Modal */}
-      <div className={`relative bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`relative bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col focus:outline-none`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+          <h2 id={titleId} className="text-xl font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
           >
             ×

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-export default function LoginForm({ onSwitchToRegister, onSuccess }) {
+export default function LoginForm({ onSwitchToRegister, onForgot, onSuccess }) {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
@@ -88,6 +88,18 @@ export default function LoginForm({ onSwitchToRegister, onSuccess }) {
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
+
+          {onForgot && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={onForgot}
+                className="text-sm text-indigo-600 hover:text-indigo-700"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
         </form>
 
         {onSwitchToRegister && (

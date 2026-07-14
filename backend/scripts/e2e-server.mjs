@@ -10,7 +10,9 @@ const mongod = await MongoMemoryServer.create();
 process.env.MONGODB_URI = mongod.getUri();
 process.env.DB_NAME = 'vibe_todo_e2e';
 process.env.PORT = '3001';
-process.env.AUTH_ENABLED = 'false';
+// Auth is off by default; set E2E_AUTH=true to exercise the login/register flow.
+process.env.AUTH_ENABLED = process.env.E2E_AUTH === 'true' ? 'true' : 'false';
+if (process.env.AUTH_ENABLED === 'true') process.env.JWT_SECRET = 'e2e-test-secret';
 process.env.CORS_ORIGIN = 'http://localhost:5173';
 process.env.E2E_TEST = 'true'; // enables the /__test__/reset endpoint for isolation
 process.env.NODE_ENV = 'development'; // ensure app.js auto-starts (it skips under 'test')

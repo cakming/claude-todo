@@ -115,6 +115,77 @@ test('projects are isolated: one project cannot see another project\'s epics', a
   assert.equal(inB.body.data.length, 0, 'project B must not see project A data');
 });
 
+test('getEpics paginates when a limit is provided', async () => {
+  const project = await makeProject('paged');
+  for (let i = 0; i < 5; i++) {
+    await request(app).post(`/api/${project}/epics`).send({ title: `Epic ${i}` });
+  }
+
+  const page1 = await request(app).get(`/api/${project}/epics?limit=2&page=1`);
+  assert.equal(page1.body.data.length, 2);
+  assert.equal(page1.body.pagination.total, 5);
+  assert.equal(page1.body.pagination.totalPages, 3);
+
+  const page3 = await request(app).get(`/api/${project}/epics?limit=2&page=3`);
+  assert.equal(page3.body.data.length, 1, 'last page has the remainder');
+
+  // No limit -> all epics, no pagination metadata (backward compatible).
+  const all = await request(app).get(`/api/${project}/epics`);
+  assert.equal(all.body.data.length, 5);
+  assert.equal(all.body.pagination, undefined);
+});
+
+test('epics can be searched and filtered by status server-side', async () => {
+  const project = await makeProject('searchable');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Payments epic', desc: 'stripe' });
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Search UI', desc: 'filtering' });
+  const blocked = await request(app).post(`/api/${project}/epics`).send({ title: 'Blocked work' });
+  await request(app).put(`/api/${project}/epics/${blocked.body.data._id}`).send({ status: 'blocked' });
+
+  // Text search matches title OR desc, case-insensitively.
+  const byTitle = await request(app).get(`/api/${project}/epics?search=payments`);
+  assert.equal(byTitle.body.data.length, 1);
+  assert.equal(byTitle.body.data[0].title, 'Payments epic');
+
+  const byDesc = await request(app).get(`/api/${project}/epics?search=FILTER`);
+  assert.equal(byDesc.body.data.length, 1);
+  assert.equal(byDesc.body.data[0].title, 'Search UI');
+
+  // Status filter.
+  const onlyBlocked = await request(app).get(`/api/${project}/epics?status=blocked`);
+  assert.equal(onlyBlocked.body.data.length, 1);
+  assert.equal(onlyBlocked.body.data[0].title, 'Blocked work');
+
+  // Search combines with pagination metadata.
+  const paged = await request(app).get(`/api/${project}/epics?search=e&limit=1&page=1`);
+  assert.ok(paged.body.pagination.total >= 1);
+  assert.equal(paged.body.data.length, 1);
+
+  // Regex metacharacters in the term are treated literally, not as a pattern.
+  const literal = await request(app).get(`/api/${project}/epics?search=${encodeURIComponent('.*')}`);
+  assert.equal(literal.body.data.length, 0, 'search term is escaped, not run as a regex');
+});
+
+test('tasks can be filtered by status within a feature', async () => {
+  const project = await makeProject('taskfilter');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const fid = feature.body.data._id;
+  const t1 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'Alpha' });
+  await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'Beta' });
+  await request(app).put(`/api/${project}/tasks/${t1.body.data._id}`).send({ status: 'done' });
+
+  const done = await request(app).get(`/api/${project}/tasks/by-feature/${fid}?status=done`);
+  assert.equal(done.body.data.length, 1);
+  assert.equal(done.body.data[0].title, 'Alpha');
+
+  const search = await request(app).get(`/api/${project}/tasks/by-feature/${fid}?search=bet`);
+  assert.equal(search.body.data.length, 1);
+  assert.equal(search.body.data[0].title, 'Beta');
+});
+
 test('the activity feed records create actions, newest first', async () => {
   const project = await makeProject();
 
@@ -130,6 +201,180 @@ test('the activity feed records create actions, newest first', async () => {
   assert.ok(actions.includes('created:epic'), 'epic creation logged');
   assert.ok(actions.includes('created:feature'), 'feature creation logged');
   assert.equal(res.body.data[0].item_type, 'feature', 'newest entry first');
+});
+
+test('tasks accept and return a due_date', async () => {
+  const project = await makeProject('due');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const task = await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T', due_date: '2026-12-31' });
+
+  assert.equal(task.body.data.due_date, '2026-12-31');
+});
+
+test('export then import copies a project into another', async () => {
+  const src = await makeProject('src');
+  const epic = await request(app).post(`/api/${src}/epics`).send({ title: 'Exported Epic' });
+  await request(app)
+    .post(`/api/${src}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'Exported Feature' });
+
+  const exported = await request(app).get(`/api/${src}/export`);
+  assert.equal(exported.status, 200);
+  assert.equal(exported.body.data.length, 2);
+
+  const dst = await makeProject('dst');
+  const imported = await request(app).post(`/api/${dst}/import`).send({ data: exported.body.data });
+  assert.equal(imported.status, 200);
+  assert.equal(imported.body.imported, 2);
+
+  const epicsInDst = await request(app).get(`/api/${dst}/epics`);
+  assert.equal(epicsInDst.body.data.length, 1);
+  assert.equal(epicsInDst.body.data[0].title, 'Exported Epic');
+});
+
+test('bulk status and bulk delete update tasks and their parent feature', async () => {
+  const project = await makeProject('bulk');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const fid = feature.body.data._id;
+  const t1 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'T1' });
+  const t2 = await request(app).post(`/api/${project}/tasks/by-feature/${fid}`).send({ title: 'T2' });
+  const ids = [t1.body.data._id, t2.body.data._id];
+
+  const bulk = await request(app).post(`/api/${project}/tasks/bulk/status`).send({ ids, status: 'done' });
+  assert.equal(bulk.status, 200);
+  assert.equal(bulk.body.updated, 2);
+
+  // With all tasks done, the parent feature auto-completes.
+  const tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data[0].features[0].status, 'done');
+
+  const del = await request(app).post(`/api/${project}/tasks/bulk/delete`).send({ ids });
+  assert.equal(del.body.deleted, 2);
+  const remaining = await request(app).get(`/api/${project}/tasks/by-feature/${fid}`);
+  assert.equal(remaining.body.data.length, 0);
+
+  // Validation: empty ids -> 400.
+  const bad = await request(app).post(`/api/${project}/tasks/bulk/status`).send({ ids: [], status: 'done' });
+  assert.equal(bad.status, 400);
+});
+
+test('deleting an epic returns the removed docs and they can be restored (undo)', async () => {
+  const project = await makeProject('undo');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const epicId = epic.body.data._id;
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epicId}`)
+    .send({ title: 'F' });
+  await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T' });
+
+  const del = await request(app).delete(`/api/${project}/epics/${epicId}`);
+  assert.equal(del.status, 200);
+  assert.equal(del.body.removed.length, 3, 'epic + feature + task returned for undo');
+
+  // Project is empty after delete.
+  let tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data.length, 0);
+
+  // Restore re-inserts everything with original ids and relationships intact.
+  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(restore.status, 200);
+  assert.equal(restore.body.restored, 3);
+
+  tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data.length, 1, 'epic is back');
+  assert.equal(tree.body.data[0]._id, epicId, 'same id preserved');
+  assert.equal(tree.body.data[0].features[0].title, 'F', 'feature restored under epic');
+  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T', 'task restored under feature');
+
+  // Restore is idempotent and validates input.
+  const again = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(again.body.restored, 3, 'double-undo is harmless');
+  const bad = await request(app).post(`/api/${project}/restore`).send({ items: [] });
+  assert.equal(bad.status, 400);
+});
+
+test('doc pages: full CRUD plus undo of a delete', async () => {
+  const project = await makeProject('docs');
+
+  // Empty to start.
+  const empty = await request(app).get(`/api/${project}/pages`);
+  assert.equal(empty.body.data.length, 0);
+
+  // Create requires a title.
+  const noTitle = await request(app).post(`/api/${project}/pages`).send({ body: 'x' });
+  assert.equal(noTitle.status, 400);
+
+  const created = await request(app)
+    .post(`/api/${project}/pages`)
+    .send({ title: 'Design Notes', body: '# Hello' });
+  assert.equal(created.status, 201);
+  const pageId = created.body.data._id;
+  assert.equal(created.body.data.type, 'page');
+
+  // Update title/body.
+  const updated = await request(app)
+    .put(`/api/${project}/pages/${pageId}`)
+    .send({ body: '# Hello\n\nUpdated.' });
+  assert.equal(updated.body.data.body, '# Hello\n\nUpdated.');
+
+  // Search matches on title/body.
+  const found = await request(app).get(`/api/${project}/pages?search=design`);
+  assert.equal(found.body.data.length, 1);
+
+  // Delete returns the removed doc; restore brings it back.
+  const del = await request(app).delete(`/api/${project}/pages/${pageId}`);
+  assert.equal(del.body.removed.length, 1);
+  const gone = await request(app).get(`/api/${project}/pages`);
+  assert.equal(gone.body.data.length, 0);
+
+  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  assert.equal(restore.body.restored, 1);
+  const back = await request(app).get(`/api/${project}/pages`);
+  assert.equal(back.body.data.length, 1);
+  assert.equal(back.body.data[0]._id, pageId);
+});
+
+test('image upload stores to GridFS and serves it back; rejects non-images', async () => {
+  const project = await makeProject('imgs');
+  // 1x1 transparent PNG.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  const up = await request(app)
+    .post(`/api/${project}/uploads`)
+    .attach('file', png, { filename: 'dot.png', contentType: 'image/png' });
+  assert.equal(up.status, 201);
+  assert.ok(up.body.url.startsWith(`/api/${project}/uploads/`));
+
+  // Serve it back with the right content type.
+  const get = await request(app).get(up.body.url);
+  assert.equal(get.status, 200);
+  assert.match(get.headers['content-type'], /image\/png/);
+  assert.equal(get.body.length, png.length);
+
+  // Non-image is rejected.
+  const bad = await request(app)
+    .post(`/api/${project}/uploads`)
+    .attach('file', Buffer.from('not an image'), { filename: 'x.txt', contentType: 'text/plain' });
+  assert.equal(bad.status, 400);
+
+  // Another project can't read this project's upload by id.
+  const other = await makeProject('imgs_other');
+  const id = up.body.url.split('/').pop();
+  const cross = await request(app).get(`/api/${other}/uploads/${id}`);
+  assert.equal(cross.status, 404);
 });
 
 test('deleting an epic cascades to its features and tasks', async () => {

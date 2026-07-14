@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
 import { validateEpic, createEpicDoc, DOC_TYPES } from '../models/schemas.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all epics for a project
@@ -10,8 +11,30 @@ export async function getEpics(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
+    // Optional ?search= (title/desc) and ?status= filters.
+    const query = applyListFilters({ type: DOC_TYPES.EPIC }, req.query);
 
-    const epics = await collection.find({ type: DOC_TYPES.EPIC }).toArray();
+    // Optional pagination: ?limit=N&page=P. Without `limit`, return everything
+    // (backward compatible).
+    const limit = parseInt(req.query.limit, 10);
+    if (Number.isInteger(limit) && limit > 0) {
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const total = await collection.countDocuments(query);
+      const epics = await collection
+        .find(query)
+        .sort({ created_at: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray();
+
+      return res.json({
+        success: true,
+        data: epics,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+      });
+    }
+
+    const epics = await collection.find(query).sort({ created_at: 1 }).toArray();
 
     res.json({
       success: true,
@@ -166,8 +189,13 @@ export async function deleteEpic(req, res) {
       epic_id: epicId
     }).toArray();
 
-    // Delete all tasks belonging to these features
+    // Capture child tasks before deleting so the client can undo the cascade.
     const featureIds = features.map(f => f._id);
+    const tasks = featureIds.length > 0
+      ? await collection.find({ type: DOC_TYPES.TASK, feature_id: { $in: featureIds } }).toArray()
+      : [];
+
+    // Delete all tasks belonging to these features
     if (featureIds.length > 0) {
       await collection.deleteMany({
         type: DOC_TYPES.TASK,
@@ -198,7 +226,8 @@ export async function deleteEpic(req, res) {
 
     res.json({
       success: true,
-      message: 'Epic and all related features and tasks deleted successfully'
+      message: 'Epic and all related features and tasks deleted successfully',
+      removed: [epicToDelete, ...features, ...tasks].filter(Boolean)
     });
   } catch (error) {
     console.error('Error deleting epic:', error);

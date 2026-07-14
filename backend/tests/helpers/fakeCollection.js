@@ -33,10 +33,29 @@ export function makeCollection(initialDocs = []) {
       docs = next.map((d) => ({ ...d }));
     },
     find(query) {
-      return { toArray: async () => docs.filter((d) => matches(d, query)) };
+      let result = docs.filter((d) => matches(d, query));
+      // Chainable cursor: sort is a no-op in tests; skip/limit slice the result.
+      const cursor = {
+        sort() {
+          return cursor;
+        },
+        skip(n) {
+          result = result.slice(n);
+          return cursor;
+        },
+        limit(n) {
+          result = result.slice(0, n);
+          return cursor;
+        },
+        toArray: async () => result
+      };
+      return cursor;
     },
     async findOne(query) {
       return docs.find((d) => matches(d, query)) || null;
+    },
+    async countDocuments(query = {}) {
+      return docs.filter((d) => matches(d, query)).length;
     },
     async insertOne(doc) {
       const _id = doc._id ?? genId();
@@ -57,7 +76,7 @@ export function makeCollection(initialDocs = []) {
     async updateOne(query, update) {
       const doc = docs.find((d) => matches(d, query));
       if (doc && update.$set) Object.assign(doc, update.$set);
-      return { modifiedCount: doc ? 1 : 0 };
+      return { matchedCount: doc ? 1 : 0, modifiedCount: doc ? 1 : 0 };
     },
     async findOneAndUpdate(query, update, options = {}) {
       const doc = docs.find((d) => matches(d, query));

@@ -83,4 +83,30 @@
   .status-blocked {
     @apply bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200;
   }
+
+  /* Rendered markdown in the Docs preview. Tailwind's reset strips default
+     element styling, so restore sensible typography for user content. */
+  .markdown-body {
+    @apply text-gray-800 leading-relaxed;
+  }
+  .markdown-body h1 { @apply text-2xl font-bold mt-4 mb-2; }
+  .markdown-body h2 { @apply text-xl font-bold mt-4 mb-2; }
+  .markdown-body h3 { @apply text-lg font-semibold mt-3 mb-1; }
+  .markdown-body p { @apply my-2; }
+  .markdown-body ul { @apply list-disc pl-6 my-2; }
+  .markdown-body ol { @apply list-decimal pl-6 my-2; }
+  .markdown-body a { @apply text-blue-600 underline; }
+  .markdown-body code {
+    @apply bg-gray-100 text-pink-600 rounded px-1 py-0.5 text-sm font-mono dark:bg-gray-700;
+  }
+  .markdown-body pre {
+    @apply bg-gray-100 rounded-lg p-3 my-2 overflow-x-auto dark:bg-gray-800;
+  }
+  .markdown-body pre code { @apply bg-transparent text-inherit p-0; }
+  .markdown-body blockquote {
+    @apply border-l-4 border-gray-300 pl-4 italic text-gray-600 my-2;
+  }
+  .markdown-body img { @apply max-w-full rounded-lg my-2; }
+  .markdown-body table { @apply border-collapse my-2; }
+  .markdown-body th, .markdown-body td { @apply border border-gray-300 px-3 py-1; }
 }

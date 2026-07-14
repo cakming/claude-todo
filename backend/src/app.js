@@ -3,12 +3,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
 import { Server as SocketIOServer } from 'socket.io';
+import logger from './utils/logger.js';
 import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
-import { authenticate, isAuthEnabled } from './middleware/authMiddleware.js';
+import { authenticate, isAuthEnabled, requireRole } from './middleware/authMiddleware.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -18,6 +20,11 @@ import featureRoutes from './routes/features.js';
 import taskRoutes from './routes/tasks.js';
 import treeRoutes from './routes/tree.js';
 import activityRoutes from './routes/activity.js';
+import adminRoutes from './routes/admin.js';
+import pageRoutes from './routes/pages.js';
+import uploadRoutes from './routes/uploads.js';
+import { exportProject, importProject } from './controllers/exchangeController.js';
+import { restoreItems } from './controllers/restoreController.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,11 +39,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+// Structured request logging. Health checks and the E2E reset endpoint are
+// noise, so we don't auto-log them.
+app.use(pinoHttp({
+  logger,
+  autoLogging: {
+    ignore: (req) => req.url === '/health' || req.url === '/__test__/reset'
+  }
+}));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -60,9 +70,13 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
 
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
+
+// Admin routes (require the 'admin' role when auth is enabled)
+app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
 // API Routes (protected if AUTH_ENABLED=true)
 app.use('/api/projects', authenticate, projectRoutes);
@@ -73,6 +87,16 @@ app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
 app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
+app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
+// Uploads apply auth per-route (POST authed, GET public) so image tags load.
+app.use('/api/:project/uploads', validateProject, uploadRoutes);
+
+// Project export / import (JSON).
+app.get('/api/:project/export', authenticate, validateProject, exportProject);
+app.post('/api/:project/import', authenticate, validateProject, importProject);
+
+// Restore previously-deleted items (undo of a delete).
+app.post('/api/:project/restore', authenticate, validateProject, restoreItems);
 
 // Test-only endpoint to reset the database between E2E tests. Gated behind
 // E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs
@@ -110,33 +134,25 @@ async function startServer() {
 
     // Start listening
     server.listen(PORT, () => {
-      console.log(`🚀 Vibe Todo API server running on port ${PORT}`);
-      console.log(`📍 API endpoint: http://localhost:${PORT}`);
-      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔌 Realtime (Socket.IO): enabled`);
-      console.log(`🔐 Authentication: ${isAuthEnabled() ? 'ENABLED' : 'DISABLED'}`);
-      if (isAuthEnabled()) {
-        console.log(`🔑 Auth endpoints: http://localhost:${PORT}/api/auth/login, /api/auth/register`);
-      }
+      logger.info(
+        { port: PORT, realtime: true, authEnabled: isAuthEnabled() },
+        `🚀 Vibe Todo API server running on port ${PORT}`
+      );
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
   }
 }
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+async function shutdown(signal) {
+  logger.info({ signal }, '🛑 Shutting down gracefully...');
   await closeDB();
   process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  await closeDB();
-  process.exit(0);
-});
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // Start the server (skipped under tests, which import `app` and manage their
 // own database connection).

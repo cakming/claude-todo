@@ -3,6 +3,7 @@ import { getProjectCollection } from '../config/mongodb.js';
 import { validateFeature, createFeatureDoc, DOC_TYPES } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all features for an epic
@@ -12,10 +13,11 @@ export async function getFeaturesByEpic(req, res) {
     const { project, epicId } = req.params;
     const collection = getProjectCollection(project);
 
-    const features = await collection.find({
-      type: DOC_TYPES.FEATURE,
-      epic_id: new ObjectId(epicId)
-    }).toArray();
+    const query = applyListFilters(
+      { type: DOC_TYPES.FEATURE, epic_id: new ObjectId(epicId) },
+      req.query
+    );
+    const features = await collection.find(query).toArray();
 
     res.json({
       success: true,
@@ -190,6 +192,12 @@ export async function deleteFeature(req, res) {
       });
     }
 
+    // Capture child tasks before deleting so the client can undo the cascade.
+    const tasks = await collection.find({
+      type: DOC_TYPES.TASK,
+      feature_id: featureId
+    }).toArray();
+
     // Delete all tasks belonging to this feature
     await collection.deleteMany({
       type: DOC_TYPES.TASK,
@@ -209,7 +217,8 @@ export async function deleteFeature(req, res) {
 
     res.json({
       success: true,
-      message: 'Feature and all related tasks deleted successfully'
+      message: 'Feature and all related tasks deleted successfully',
+      removed: [feature, ...tasks]
     });
   } catch (error) {
     console.error('Error deleting feature:', error);

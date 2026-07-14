@@ -1,8 +1,9 @@
 import { ObjectId } from 'mongodb';
 import { getProjectCollection } from '../config/mongodb.js';
-import { validateTask, createTaskDoc, DOC_TYPES } from '../models/schemas.js';
+import { validateTask, createTaskDoc, DOC_TYPES, ITEM_STATUS } from '../models/schemas.js';
 import { updateParentStatus } from './statusController.js';
 import { logActivity } from '../utils/activity.js';
+import { applyListFilters } from '../utils/query.js';
 
 /**
  * Get all tasks for a feature
@@ -12,10 +13,11 @@ export async function getTasksByFeature(req, res) {
     const { project, featureId } = req.params;
     const collection = getProjectCollection(project);
 
-    const tasks = await collection.find({
-      type: DOC_TYPES.TASK,
-      feature_id: new ObjectId(featureId)
-    }).toArray();
+    const query = applyListFilters(
+      { type: DOC_TYPES.TASK, feature_id: new ObjectId(featureId) },
+      req.query
+    );
+    const tasks = await collection.find(query).toArray();
 
     res.json({
       success: true,
@@ -168,6 +170,78 @@ export async function updateTask(req, res) {
 }
 
 /**
+ * Bulk-update the status of many tasks, then recompute affected parents.
+ */
+export async function bulkUpdateTaskStatus(req, res) {
+  try {
+    const { project } = req.params;
+    const { ids, status } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids array is required' });
+    }
+    if (!ITEM_STATUS.includes(status)) {
+      return res.status(400).json({ success: false, error: `status must be one of: ${ITEM_STATUS.join(', ')}` });
+    }
+
+    const collection = getProjectCollection(project);
+    const objectIds = ids.map((id) => new ObjectId(id));
+    const tasks = await collection.find({ type: DOC_TYPES.TASK, _id: { $in: objectIds } }).toArray();
+
+    await collection.updateMany(
+      { type: DOC_TYPES.TASK, _id: { $in: objectIds } },
+      { $set: { status, updated_at: new Date() } }
+    );
+
+    await recomputeParents(collection, tasks);
+    await logActivity(project, { action: 'updated', item_type: 'task', title: `${tasks.length} tasks` });
+    res.json({ success: true, updated: tasks.length });
+  } catch (error) {
+    console.error('Error bulk-updating tasks:', error);
+    res.status(500).json({ success: false, error: 'Failed to bulk-update tasks' });
+  }
+}
+
+/**
+ * Bulk-delete many tasks, then recompute affected parents.
+ */
+export async function bulkDeleteTasks(req, res) {
+  try {
+    const { project } = req.params;
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids array is required' });
+    }
+
+    const collection = getProjectCollection(project);
+    const objectIds = ids.map((id) => new ObjectId(id));
+    const tasks = await collection.find({ type: DOC_TYPES.TASK, _id: { $in: objectIds } }).toArray();
+
+    await collection.deleteMany({ type: DOC_TYPES.TASK, _id: { $in: objectIds } });
+
+    await recomputeParents(collection, tasks);
+    await logActivity(project, { action: 'deleted', item_type: 'task', title: `${tasks.length} tasks` });
+    // Return the removed docs so the client can offer an undo (restore).
+    res.json({ success: true, deleted: tasks.length, removed: tasks });
+  } catch (error) {
+    console.error('Error bulk-deleting tasks:', error);
+    res.status(500).json({ success: false, error: 'Failed to bulk-delete tasks' });
+  }
+}
+
+// Recompute parent feature status for the distinct features of the given tasks.
+async function recomputeParents(collection, tasks) {
+  const seen = new Set();
+  for (const task of tasks) {
+    const key = String(task.feature_id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    await updateParentStatus(collection, task.feature_id, DOC_TYPES.FEATURE);
+  }
+}
+
+/**
  * Delete a task
  */
 export async function deleteTask(req, res) {
@@ -203,7 +277,8 @@ export async function deleteTask(req, res) {
 
     res.json({
       success: true,
-      message: 'Task deleted successfully'
+      message: 'Task deleted successfully',
+      removed: [task]
     });
   } catch (error) {
     console.error('Error deleting task:', error);

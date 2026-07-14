@@ -18,12 +18,26 @@ export default function Toast() {
           }`}
         >
           <span className="mr-4">{toast.message}</span>
-          <button
-            onClick={() => removeToast(toast.id)}
-            className="text-white hover:text-gray-200 font-bold text-xl"
-          >
-            ×
-          </button>
+          <div className="flex items-center space-x-3">
+            {toast.action && (
+              <button
+                onClick={() => {
+                  toast.action.onClick();
+                  removeToast(toast.id);
+                }}
+                className="font-semibold underline underline-offset-2 hover:text-gray-100"
+              >
+                {toast.action.label}
+              </button>
+            )}
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="text-white hover:text-gray-200 font-bold text-xl"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
         </div>
       ))}
     </div>

@@ -108,6 +108,20 @@ Get all epics for a project.
 
 **Example:** `GET /api/my_project/epics`
 
+**Query parameters (all optional):**
+
+| Param    | Description                                                            |
+|----------|------------------------------------------------------------------------|
+| `search` | Case-insensitive match on title or description (special chars literal) |
+| `status` | Exact status filter (e.g. `blocked`)                                   |
+| `limit`  | Page size; enables pagination                                          |
+| `page`   | 1-based page number (used with `limit`)                                |
+
+When `limit` is supplied the response also includes a `pagination` object
+(`{ page, limit, total, totalPages }`). The `search` and `status` filters are
+also accepted by the feature (`GET .../features/by-epic/:epicId`) and task
+(`GET .../tasks/by-feature/:featureId`) list endpoints.
+
 **Response:**
 ```json
 {
@@ -200,11 +214,34 @@ Update an epic.
 
 Delete an epic and all its features and tasks (cascade delete).
 
+The response includes a `removed` array containing every deleted document
+(the epic plus its cascaded features and tasks). Pass it back to
+`POST /api/:project/restore` to undo the delete. The feature, task, and bulk
+task delete endpoints return `removed` the same way.
+
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Epic and all related features and tasks deleted successfully"
+  "message": "Epic and all related features and tasks deleted successfully",
+  "removed": [ { "_id": "...", "type": "epic", "...": "..." } ]
+}
+```
+
+### POST /api/:project/restore
+
+Restore previously-deleted items (the undo of a delete). Pass the `removed`
+array returned by a delete endpoint. Ids are preserved so parent/child links
+stay intact; the operation is idempotent, and affected parent statuses are
+recomputed.
+
+**Request body:** `{ "items": [ ...documents from a delete's `removed`... ] }`
+
+**Response:**
+```json
+{
+  "success": true,
+  "restored": 3
 }
 ```
 
@@ -355,6 +392,55 @@ Delete a task.
 
 **Notes:**
 - Updates parent feature status after deletion
+
+---
+
+## Docs (Pages)
+
+Free-form markdown notes attached to a project, separate from the
+epic/feature/task tree.
+
+### GET /api/:project/pages
+
+List a project's pages (newest updated first). Accepts `?search=` (matches
+title/body).
+
+### GET /api/:project/pages/:id
+
+Get a single page.
+
+### POST /api/:project/pages
+
+Create a page. Body: `{ "title": "...", "body": "markdown..." }` (`title`
+required).
+
+### PUT /api/:project/pages/:id
+
+Update a page's `title` and/or `body`.
+
+### DELETE /api/:project/pages/:id
+
+Delete a page. Returns `removed` (the deleted doc) so it can be restored via
+`POST /api/:project/restore`.
+
+---
+
+## Uploads (Images)
+
+### POST /api/:project/uploads
+
+Upload an image (multipart form field `file`; images only, 5 MB max). Stored in
+GridFS. Requires auth when auth is enabled.
+
+**Response:**
+```json
+{ "success": true, "id": "...", "url": "/api/my_project/uploads/..." }
+```
+
+### GET /api/:project/uploads/:id
+
+Stream a stored image. **Public** (no auth) so `<img>` tags load; ids are
+unguessable and scoped to the project the file was uploaded under.
 
 ---
 

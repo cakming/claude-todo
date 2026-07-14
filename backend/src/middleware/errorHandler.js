@@ -1,8 +1,11 @@
+import logger from '../utils/logger.js';
+
 /**
  * Global error handling middleware
  */
 export function errorHandler(err, req, res, next) {
-  console.error('Error:', err);
+  // Prefer the per-request child logger (adds request id) when available.
+  (req.log || logger).error({ err }, 'Request error');
 
   // Handle specific error types
   if (err.name === 'ValidationError') {

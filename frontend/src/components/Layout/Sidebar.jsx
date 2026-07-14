@@ -1,11 +1,21 @@
+import { useAuth } from '../../context/AuthContext';
+
 export default function Sidebar({ currentView, setCurrentView }) {
+  const { authEnabled, user } = useAuth();
+
   const navItems = [
     { id: 'epics', icon: '📊', label: 'Epics' },
     { id: 'features', icon: '✨', label: 'Features' },
     { id: 'tasks', icon: '✅', label: 'Tasks' },
     { id: 'tree', icon: '🌲', label: 'Tree View' },
+    { id: 'docs', icon: '📄', label: 'Docs' },
     { id: 'activity', icon: '📜', label: 'Activity' }
   ];
+
+  // Admins get a Users management view.
+  if (authEnabled && user?.role === 'admin') {
+    navItems.push({ id: 'users', icon: '👥', label: 'Users' });
+  }
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 p-4">

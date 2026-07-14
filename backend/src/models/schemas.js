@@ -12,7 +12,8 @@ export const ITEM_STATUS = ['todo', 'in_progress', 'done', 'blocked'];
 export const DOC_TYPES = {
   EPIC: 'epic',
   FEATURE: 'feature',
-  TASK: 'task'
+  TASK: 'task',
+  PAGE: 'page'
 };
 
 /**
@@ -87,6 +88,37 @@ export function validateTask(data) {
 }
 
 /**
+ * Validate Page (doc/note) document
+ */
+export function validatePage(data) {
+  const errors = [];
+
+  if (!data.title || typeof data.title !== 'string' || data.title.trim().length === 0) {
+    errors.push('Title is required and must be a non-empty string');
+  }
+
+  if (data.body !== undefined && typeof data.body !== 'string') {
+    errors.push('body must be a string');
+  }
+
+  return errors;
+}
+
+/**
+ * Create Page document. Pages are free-form markdown notes attached to a
+ * project — separate from the epic/feature/task tree.
+ */
+export function createPageDoc(data) {
+  return {
+    type: DOC_TYPES.PAGE,
+    title: data.title.trim(),
+    body: typeof data.body === 'string' ? data.body : '',
+    created_at: new Date(),
+    updated_at: new Date()
+  };
+}
+
+/**
  * Create Epic document
  */
 export function createEpicDoc(data) {
@@ -129,6 +161,7 @@ export function createTaskDoc(data) {
     uat: data.uat || '',
     status: data.status || 'todo',
     reference_file: data.reference_file || '',
+    due_date: data.due_date || null,
     created_at: new Date(),
     updated_at: new Date()
   };

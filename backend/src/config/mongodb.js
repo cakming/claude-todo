@@ -12,16 +12,23 @@ let db;
 /**
  * Initialize MongoDB connection
  */
-export async function connectDB() {
-  try {
-    client = new MongoClient(uri);
-    await client.connect();
-    db = client.db(dbName);
-    console.log(`✅ Connected to MongoDB: ${dbName}`);
-    return db;
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
+export async function connectDB(retries = 5, delayMs = 2000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      client = new MongoClient(uri);
+      await client.connect();
+      db = client.db(dbName);
+      console.log(`✅ Connected to MongoDB: ${dbName}`);
+      return db;
+    } catch (error) {
+      console.error(`❌ MongoDB connection error (attempt ${attempt}/${retries}):`, error.message);
+      if (attempt === retries) {
+        console.error('❌ Could not connect to MongoDB after retries. Exiting.');
+        process.exit(1);
+      }
+      // Exponential backoff before retrying the initial connection.
+      await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
   }
 }
 

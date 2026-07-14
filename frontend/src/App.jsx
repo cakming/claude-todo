@@ -4,6 +4,7 @@ import MainLayout from './components/Layout/MainLayout';
 import AuthPage from './pages/AuthPage';
 import Toast from './components/Common/Toast';
 import Loading from './components/Common/Loading';
+import ErrorBoundary from './components/Common/ErrorBoundary';
 import './index.css';
 
 function AppContent() {
@@ -43,9 +44,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

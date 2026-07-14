@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { authenticate, optionalAuthenticate, isAuthEnabled } from '../src/middleware/authMiddleware.js';
+import { authenticate, optionalAuthenticate, isAuthEnabled, requireRole } from '../src/middleware/authMiddleware.js';
 import { generateToken } from '../src/utils/jwt.js';
 
 function makeRes() {
@@ -114,4 +114,31 @@ test('optionalAuthenticate ignores an invalid token and still continues', () => 
   });
   assert.equal(nexted, true);
   assert.equal(req.user, undefined);
+});
+
+test('requireRole allows everything when auth is disabled', () => {
+  const res = makeRes();
+  let nexted = false;
+  requireRole('admin')({ user: undefined }, res, () => {
+    nexted = true;
+  });
+  assert.equal(nexted, true);
+});
+
+test('requireRole passes an admin and blocks a non-admin with 403', () => {
+  process.env.AUTH_ENABLED = 'true';
+
+  let nexted = false;
+  requireRole('admin')({ user: { role: 'admin' } }, makeRes(), () => {
+    nexted = true;
+  });
+  assert.equal(nexted, true);
+
+  const res = makeRes();
+  let blockedNext = false;
+  requireRole('admin')({ user: { role: 'member' } }, res, () => {
+    blockedNext = true;
+  });
+  assert.equal(blockedNext, false);
+  assert.equal(res.statusCode, 403);
 });
