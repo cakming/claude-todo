@@ -310,6 +310,31 @@ test('deleting an epic trashes its subtree; it can be restored or purged', async
   assert.equal(noBatch.status, 400);
 });
 
+test('trash auto-purges items older than the retention window', async () => {
+  const project = await makeProject('retention');
+  const keep = await request(app).post(`/api/${project}/epics`).send({ title: 'Recent' });
+  const old = await request(app).post(`/api/${project}/epics`).send({ title: 'Ancient' });
+  const keepDel = await request(app).delete(`/api/${project}/epics/${keep.body.data._id}`);
+  const oldDel = await request(app).delete(`/api/${project}/epics/${old.body.data._id}`);
+
+  // Age one batch well past the default 30-day retention.
+  const coll = getDB().collection(`project_${project}`);
+  await coll.updateMany(
+    { deleted_batch: new (await import('mongodb')).ObjectId(oldDel.body.batch) },
+    { $set: { deleted_at: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) } }
+  );
+
+  // Listing the trash sweeps the aged batch and keeps the recent one.
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 1, 'only the recent batch remains');
+  assert.equal(trash.body.data[0].batch, keepDel.body.batch);
+  assert.equal(trash.body.retentionDays, 30);
+
+  // The purged batch can no longer be restored.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: oldDel.body.batch });
+  assert.equal(restore.status, 404);
+});
+
 test('purging trash permanently removes the batch', async () => {
   const project = await makeProject('purge');
   const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });

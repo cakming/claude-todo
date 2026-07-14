@@ -7,6 +7,21 @@ import { logActivity } from '../utils/activity.js';
 // Priority for choosing a batch's representative item (top of the subtree).
 const TYPE_RANK = { epic: 0, feature: 1, task: 2, page: 3 };
 
+// Trashed items older than this are auto-purged (0 disables). Configurable.
+function retentionDays() {
+  const v = Number(process.env.TRASH_RETENTION_DAYS);
+  return Number.isFinite(v) && v >= 0 ? v : 30;
+}
+
+// Permanently remove trashed items past the retention window. Best-effort:
+// runs lazily when the trash is listed, so no scheduler is needed.
+async function purgeExpired(collection) {
+  const days = retentionDays();
+  if (days <= 0) return;
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  await collection.deleteMany({ deleted_at: { $ne: null, $lt: cutoff } });
+}
+
 /**
  * List trashed items, grouped by the delete batch they were removed in
  * (so a cascaded epic delete shows as one restorable entry). Newest first.
@@ -15,6 +30,10 @@ export async function listTrash(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
+
+    // Sweep out anything past the retention window before listing.
+    await purgeExpired(collection);
+
     const docs = await collection
       .find({ deleted_at: { $ne: null } })
       .sort({ deleted_at: -1 })
@@ -40,7 +59,7 @@ export async function listTrash(req, res) {
       };
     });
 
-    res.json({ success: true, data });
+    res.json({ success: true, data, retentionDays: retentionDays() });
   } catch (error) {
     console.error('Error listing trash:', error);
     res.status(500).json({ success: false, error: 'Failed to list trash' });

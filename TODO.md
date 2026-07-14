@@ -20,7 +20,7 @@ Living backlog for the Vibe Coding Todo Manager. Shipped work is summarized in
 
 1. [x] **Backend dependency advisories** — `npm audit fix` + nodemailer 6→9; 0 prod vulns.
 2. [x] **Share-link expiry / TTL** — `expiresInDays` on create; public read returns 410 + removes expired. (UI selector ships with #5.)
-3. [ ] **Trash retention / auto-purge** — automatically purge items older than a window.
+3. [x] **Trash retention / auto-purge** — `TRASH_RETENTION_DAYS` (default 30); swept lazily on trash list.
 4. [ ] **Auth-gated image serving** — tighten image reads without breaking public shares.
 5. [ ] **Share management UI** — list and revoke existing links from the app.
 6. [ ] **Notion-style block editor** — replace the Docs markdown textarea (TipTap).
