@@ -147,6 +147,39 @@ test('bulk-selecting tasks and marking them done moves them together', async ({ 
   await expect(page.getByText('To Do (0)')).toBeVisible();
 });
 
+test('docs: create a page, upload an image, and preview markdown', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+
+  await page.getByRole('button', { name: '📄 Docs' }).click();
+  await expect(page.getByRole('heading', { name: 'Docs' })).toBeVisible();
+
+  await page.getByRole('button', { name: '+ New Page' }).click();
+  await page.getByLabel('Page title').fill('My First Doc');
+  await page.getByLabel('Page body').fill('# Hello\n\nSome **bold** text.');
+
+  // Upload a 1x1 PNG through the hidden file input.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  await page.locator('input[accept="image/*"]').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByText('Image uploaded')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Page saved')).toBeVisible();
+
+  // The saved page appears in the list.
+  await expect(page.getByRole('button', { name: /My First Doc/ })).toBeVisible();
+
+  // Preview renders the markdown heading and the uploaded image actually loads.
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.locator('.markdown-body h1')).toHaveText('Hello');
+  const img = page.locator('.markdown-body img');
+  await expect(img).toHaveAttribute('src', /\/uploads\//);
+  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
+});
+
 test('activity feed lists recent changes', async ({ page }) => {
   await page.goto('/');
   await createProject(page);

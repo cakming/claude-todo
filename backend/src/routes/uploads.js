@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { uploadImage, getImage } from '../controllers/uploadsController.js';
+import { authenticate } from '../middleware/authMiddleware.js';
 
 // Keep uploads in memory (they go straight to GridFS) and cap at 5 MB. Only
 // image content types are accepted.
@@ -26,7 +27,10 @@ function handleUpload(req, res, next) {
   });
 }
 
-router.post('/', handleUpload, uploadImage);
+// Uploading requires auth; reading an image is public so plain <img src> tags
+// (which can't send an Authorization header) work. Ids are unguessable
+// ObjectIds scoped to the project.
+router.post('/', authenticate, handleUpload, uploadImage);
 router.get('/:id', getImage);
 
 export default router;

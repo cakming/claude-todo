@@ -1,6 +1,9 @@
 import { getAuthHeaders } from './auth.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Origin the API is served from ('' when same-origin in production). Used to
+// turn the relative upload URLs the server returns into absolute <img> srcs.
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 class ApiError extends Error {
   constructor(message, status, details = null) {
@@ -248,6 +251,65 @@ export const exchangeApi = {
       body: JSON.stringify({ data })
     });
     return handleResponse(response);
+  }
+};
+
+// Doc pages API
+export const pagesApi = {
+  getAll: async (project, opts = {}) => {
+    const qs = opts.search ? `?search=${encodeURIComponent(opts.search)}` : '';
+    const response = await fetch(`${API_BASE_URL}/${project}/pages${qs}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  getById: async (project, id) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/pages/${id}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (project, data) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/pages`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  update: async (project, id, data) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/pages/${id}`, {
+      method: 'PUT',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  delete: async (project, id) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/pages/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
+// Image uploads (multipart). Returns an absolute URL ready to embed in markdown.
+export const uploadsApi = {
+  uploadImage: async (project, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/${project}/uploads`, {
+      method: 'POST',
+      headers: getAuthHeaders(), // no Content-Type: the browser sets the multipart boundary
+      body: form
+    });
+    const data = await handleResponse(response);
+    return { ...data, url: `${API_ORIGIN}${data.url}` };
   }
 };
 

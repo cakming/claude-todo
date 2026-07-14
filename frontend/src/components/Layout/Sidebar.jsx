@@ -8,6 +8,7 @@ export default function Sidebar({ currentView, setCurrentView }) {
     { id: 'features', icon: '✨', label: 'Features' },
     { id: 'tasks', icon: '✅', label: 'Tasks' },
     { id: 'tree', icon: '🌲', label: 'Tree View' },
+    { id: 'docs', icon: '📄', label: 'Docs' },
     { id: 'activity', icon: '📜', label: 'Activity' }
   ];
 
