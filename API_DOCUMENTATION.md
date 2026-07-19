@@ -219,6 +219,17 @@ The response includes a `removed` array containing every deleted document
 `POST /api/:project/restore` to undo the delete. The feature, task, and bulk
 task delete endpoints return `removed` the same way.
 
+> **Update (2026-07):** This describes an old hard-delete model that no longer
+> matches the code. Delete is now a **soft-delete**: the controller sets
+> `deleted_at` and a shared `deleted_batch` on the epic and its cascaded
+> features/tasks (they are hidden from all reads but retained), and the
+> response returns a `batch` id — **not** a `removed` array. There is **no**
+> `POST /api/:project/restore` route; restore is done via
+> `POST /api/:project/trash/restore` with a `{ "batch": "..." }` body. See the
+> [Trash (soft-delete)](#trash-soft-delete) section below. The feature, task,
+> single-page, and bulk-task delete endpoints all behave the same way (each
+> returns a `batch`; the bulk-task endpoint also returns a `deleted` count).
+
 **Response:**
 ```json
 {
@@ -227,6 +238,15 @@ task delete endpoints return `removed` the same way.
   "removed": [ { "_id": "...", "type": "epic", "...": "..." } ]
 }
 ```
+
+> **Update (2026-07):** The actual response has no `removed` array; it is:
+> ```json
+> {
+>   "success": true,
+>   "message": "Epic and all related features and tasks deleted successfully",
+>   "batch": "60d5ec49f1b2c8b1f8e4e1ff"
+> }
+> ```
 
 ### POST /api/:project/restore
 
@@ -244,6 +264,13 @@ recomputed.
   "restored": 3
 }
 ```
+
+> **Update (2026-07):** ~~`POST /api/:project/restore`~~ **This route does not
+> exist.** Restore is handled by the trash system:
+> `POST /api/:project/trash/restore` with a `{ "batch": "..." }` body (the
+> `batch` id returned by the delete). Ids are preserved and affected parent
+> statuses are recomputed. See the [Trash (soft-delete)](#trash-soft-delete)
+> section below. The response is `{ "success": true, "restored": <count> }`.
 
 ---
 
@@ -476,6 +503,13 @@ Update a page's `title` and/or `body`.
 Delete a page. Returns `removed` (the deleted doc) so it can be restored via
 `POST /api/:project/restore`.
 
+> **Update (2026-07):** Like the other deletes, a page is **soft-deleted**. The
+> response is `{ "success": true, "message": "Page deleted successfully",
+> "batch": "..." }` (no `removed` doc), and it is restored via
+> `POST /api/:project/trash/restore` with `{ "batch": "..." }` — not the
+> non-existent `POST /api/:project/restore`. See
+> [Trash (soft-delete)](#trash-soft-delete).
+
 ---
 
 ## Uploads (Images)
@@ -485,15 +519,160 @@ Delete a page. Returns `removed` (the deleted doc) so it can be restored via
 Upload an image (multipart form field `file`; images only, 5 MB max). Stored in
 GridFS. Requires auth when auth is enabled.
 
-**Response:**
-```json
-{ "success": true, "id": "...", "url": "/api/my_project/uploads/..." }
-```
+> **Update (2026-07):** Storage is **pluggable**, not GridFS-only. When the
+> `GCS_BUCKET` env var is set, images are stored in a Google Cloud Storage
+> bucket (namespaced per project); otherwise they fall back to GridFS inside
+> MongoDB (see `backend/src/utils/storage.js`). Both are addressed by the same
+> unguessable token URL. The response is ~~`{ id, url }`~~ **`{ url, storage }`**
+> where `storage` is `"gcs"` or `"gridfs"` — there is no `id` field:
+> ```json
+> { "success": true, "url": "/api/my_project/uploads/<token>", "storage": "gridfs" }
+> ```
 
 ### GET /api/:project/uploads/:id
 
 Stream a stored image. **Public** (no auth) so `<img>` tags load; ids are
 unguessable and scoped to the project the file was uploaded under.
+
+---
+
+## Public Sharing
+
+> **Added (2026-07):** Documenting endpoints that exist in code
+> (`backend/src/routes/shares.js`, `backend/src/controllers/sharesController.js`,
+> and the public route registered in `backend/src/app.js`) but were previously
+> undocumented.
+
+Share links grant **public, read-only** access to either a whole project (its
+tree) or a single docs page. They live in a top-level `shares` collection keyed
+by an unguessable token. The management endpoints require auth (and block
+`viewer`-role writes); the public read endpoint requires no auth.
+
+### GET /api/:project/shares
+
+List the share links created for a project (newest first).
+
+### POST /api/:project/shares
+
+Create a share link.
+
+**Request Body:**
+```json
+{
+  "scope": "project",
+  "pageId": "60d5ec49f1b2c8b1f8e4e1a9",
+  "expiresInDays": 7
+}
+```
+
+**Fields:**
+- `scope` (optional): `project` (default) or `page`.
+- `pageId` (required when `scope` is `page`): the page to share.
+- `expiresInDays` (optional): a positive number sets an expiry (`expires_at`);
+  omit for a link that never expires.
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": "<32-hex-token>",
+  "scope": "project",
+  "path": "/s/<token>",
+  "expires_at": "2026-07-26T10:30:00.000Z"
+}
+```
+
+### DELETE /api/:project/shares/:token
+
+Revoke (delete) a share link. Returns `404` if the token isn't found for this
+project.
+
+### GET /api/public/:token
+
+**Public, unauthenticated** read of a shared resource (registered at the app
+root, not under `/api/:project`). Returns the project tree (`scope: "project"`)
+or a single page (`scope: "page"`) — nothing that would let the viewer mutate
+anything.
+
+- Returns `404` if the token is unknown or the shared page is gone.
+- Returns **`410 Gone`** (`"This share link has expired"`) once `expires_at`
+  has passed; the expired link is also cleaned up.
+
+---
+
+## Export / Import
+
+> **Added (2026-07):** Documenting endpoints that exist in code
+> (`backend/src/controllers/exchangeController.js`, registered in
+> `backend/src/app.js`) but were previously undocumented.
+
+### GET /api/:project/export
+
+Export a project's live (non-trashed) epics, features, tasks, and pages as JSON.
+
+**Response:**
+```json
+{
+  "success": true,
+  "project": "my_project",
+  "exportedAt": "2026-07-19T10:30:00.000Z",
+  "data": [ { "_id": "...", "type": "epic", "...": "..." } ]
+}
+```
+
+### POST /api/:project/import
+
+Import items into a project, **replacing** its current epics/features/tasks/pages.
+Ids (and `epic_id`/`feature_id` links) are preserved so the hierarchy stays
+intact. A write, so `viewer`-role accounts are blocked.
+
+**Request Body:** `{ "data": [ ...items (typically an export's `data`)... ] }`
+
+**Response:** `{ "success": true, "imported": <count> }`
+
+Returns `400` if `data` is not an array or contains an invalid id.
+
+---
+
+## Activity Feed
+
+> **Added (2026-07):** Documenting an endpoint that exists in code
+> (`backend/src/routes/activity.js`,
+> `backend/src/controllers/activityController.js`) but was previously
+> undocumented.
+
+### GET /api/:project/activity
+
+Return the recent activity log for a project (create/update/delete events that
+the controllers record via `logActivity`).
+
+**Response:** `{ "success": true, "data": [ ...activity entries... ] }`
+
+---
+
+## Admin
+
+> **Added (2026-07):** Documenting endpoints that exist in code
+> (`backend/src/routes/admin.js`, `backend/src/controllers/userController.js`).
+> The whole group is mounted behind `authenticate` **and**
+> `requireRole('admin')` in `backend/src/app.js`, so only admin accounts can
+> reach it.
+
+### GET /api/admin/users
+
+List all users.
+
+### PATCH /api/admin/users/:id/role
+
+Change a user's role. Body carries the new role (e.g. `admin` / `viewer`).
+
+### DELETE /api/admin/users/:id
+
+Delete a user.
+
+### POST /api/admin/users/:id/reset-password
+
+Reset a user's password.
 
 ---
 
@@ -651,6 +830,27 @@ Import this collection to test all endpoints:
 
 Currently, there is no rate limiting. For production, consider implementing rate limiting middleware.
 
+> **Update (2026-07):** ~~there is no rate limiting~~ **Rate limiting is
+> shipped.** `express-rate-limit` is applied in `backend/src/app.js` to the
+> sensitive auth endpoints — `POST /api/auth/login`, `/api/auth/register`, and
+> `/api/auth/forgot-password` — with a window of 15 minutes and a max of 10
+> attempts per IP (returns `429` with a `"Too many attempts"` message). The
+> limiter is skipped under the test/E2E environments so suites aren't throttled.
+
 ## Authentication
 
 Currently, the API is open. For production, implement authentication using JWT or OAuth.
+
+> **Update (2026-07):** ~~the API is open~~ **Full JWT authentication is
+> shipped** (see `backend/src/middleware/authMiddleware.js` and how routes are
+> mounted in `backend/src/app.js`). Every `/api/...` route group is wrapped in
+> the `authenticate` middleware (enforced when `AUTH_ENABLED=true`). On top of
+> authentication there is **role enforcement**:
+> - `blockWritesForViewer` makes `viewer`-role accounts read-only (it rejects
+>   `POST`/`PUT`/`PATCH`/`DELETE` on projects, epics, features, tasks, pages,
+>   shares, trash, comments, and import).
+> - `requireRole('admin')` gates the admin routes (`/api/admin/*`).
+>
+> Auth-related endpoints live under `/api/auth` (login, register,
+> forgot-password, Telegram linking, etc.). The `/health` response also reports
+> `authEnabled`. See the new **Admin** section below for admin-only endpoints.
