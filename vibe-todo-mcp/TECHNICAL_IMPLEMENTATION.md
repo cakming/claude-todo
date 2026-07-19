@@ -28,7 +28,7 @@ Deep dive into the architecture and implementation details of the Vibe Todo MCP 
 ┌──────────────┴──────────────────────────┐
 │      Vibe Todo MCP Server               │
 │  ┌────────────────────────────────────┐ │
-│  │  Tool Registry (30+ tools)         │ │
+│  │  Tool Registry (42 tools)          │ │
 │  └─────────────┬──────────────────────┘ │
 │                │                         │
 │  ┌─────────────┴──────────────────────┐ │
@@ -165,7 +165,7 @@ vibe-todo-mcp/
 
 **Responsibilities:**
 - Initialize MCP server with SDK
-- Register 30+ tool definitions
+- Register 42 tool definitions
 - Handle tool execution requests
 - Route to appropriate tool functions
 - Return formatted responses
@@ -775,7 +775,7 @@ For production use, add:
 
 - **Total Files**: 17 TypeScript files
 - **Total Lines**: ~2,500 lines
-- **Tools**: 30+ MCP tools
+- **Tools**: 42 MCP tools
 - **Dependencies**: 3 runtime, 2 dev
 
 ### Key Algorithms

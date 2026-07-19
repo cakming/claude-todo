@@ -5,14 +5,14 @@ Custom Model Context Protocol (MCP) server for the Vibe Coding Todo Manager. Thi
 ## 📚 Complete Documentation
 
 - **[Setup Guide](./SETUP_GUIDE.md)** - Complete installation and configuration
-- **[Tools Reference](./TOOLS_REFERENCE.md)** - All 30+ MCP tools with examples
+- **[Tools Reference](./TOOLS_REFERENCE.md)** - All 42 MCP tools with examples
 - **[Usage Examples](./USAGE_EXAMPLES.md)** - Real-world usage scenarios
 - **[Key Features](./KEY_FEATURES.md)** - Deep dive into auto-status updates and more
 - **[Technical Implementation](./TECHNICAL_IMPLEMENTATION.md)** - Architecture and algorithms
 
 ## 🌟 Features
 
-**30+ MCP Tools** providing complete control over your todo hierarchy:
+**42 MCP Tools** providing complete control over your todo hierarchy:
 
 ### Project Management
 - `list_projects` - List all projects
@@ -53,6 +53,30 @@ Custom Model Context Protocol (MCP) server for the Vibe Coding Todo Manager. Thi
 - `get_blocked_items` - Find all blocked items
 - `get_in_progress_items` - Find all in-progress items
 - `get_recently_updated` - Get recently updated items
+
+> Read tools (`list_*`, `get_*`, `search_items`, tree, and stats) exclude soft-deleted (trashed) items.
+
+### Docs / Pages
+- `list_pages` - List doc pages (newest first, optional text search)
+- `get_page` - Get a single doc page
+- `create_page` - Create a free-form doc page
+- `update_page` - Update page title/body
+- `delete_page` - Soft-delete a page (moves to trash, restorable)
+
+### Comments
+- `list_comments` - List comments on an epic/feature/task (oldest first)
+- `add_comment` - Add a comment (parses `@mentions`)
+- `delete_comment` - Delete a comment
+
+### Trash
+- `list_trash` - List soft-deleted items grouped by batch (auto-purges expired items)
+- `restore_trash` - Restore a whole delete batch (recomputes parent statuses)
+- `purge_trash` - Permanently delete a batch, or `"all"` for the whole trash
+
+### Shares
+- `list_shares` - List public read-only share links
+- `create_share` - Create a public link (project or single page, optional expiry)
+- `revoke_share` - Revoke a share link
 
 ## 🚀 Quick Start
 
@@ -105,7 +129,7 @@ That's it! Start using natural language to manage your todos.
 | Document | Purpose | Read When |
 |----------|---------|-----------|
 | [Setup Guide](./SETUP_GUIDE.md) | Installation & configuration | First time setup |
-| [Tools Reference](./TOOLS_REFERENCE.md) | All 30+ tools with examples | Learning available tools |
+| [Tools Reference](./TOOLS_REFERENCE.md) | All 42 tools with examples | Learning available tools |
 | [Usage Examples](./USAGE_EXAMPLES.md) | Real-world scenarios | Understanding workflows |
 | [Key Features](./KEY_FEATURES.md) | Auto-status, hierarchy, etc. | Understanding how it works |
 | [Technical Implementation](./TECHNICAL_IMPLEMENTATION.md) | Architecture & algorithms | Contributing or debugging |
@@ -284,7 +308,11 @@ vibe-todo-mcp/
 │   │   ├── featureTools.ts   # Feature operations
 │   │   ├── taskTools.ts      # Task operations
 │   │   ├── treeTools.ts      # Tree view
-│   │   └── searchTools.ts    # Search operations
+│   │   ├── searchTools.ts    # Search operations
+│   │   ├── pagesTools.ts     # Doc page operations
+│   │   ├── commentsTools.ts  # Comment operations (@mentions)
+│   │   ├── trashTools.ts     # Trash: list/restore/purge
+│   │   └── sharesTools.ts    # Public read-only share links
 │   └── utils/
 │       ├── validation.ts     # Input validation
 │       └── statusUpdates.ts  # Auto-status logic

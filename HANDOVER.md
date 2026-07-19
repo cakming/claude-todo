@@ -43,7 +43,7 @@
 - ✅ **Authentication Ready** - Optional auth system (disabled by default)
 - ✅ **Claude AI Integration** - Custom MCP server with 30+ tools
 
-> **Update (2026-07):** Correction — the MCP server exposes **28 tools** (verified in `vibe-todo-mcp/src/index.ts` `ListTools` handler), not "30+".
+> **Update (2026-07):** Correction — the MCP server exposes **42 tools** (verified in `vibe-todo-mcp/src/index.ts` `ListTools` handler), not "30+".
 
 ### Tech Stack
 
@@ -137,7 +137,7 @@ Solve the problem of flat todo lists that don't handle the complexity of softwar
 #### TypeScript MCP Server
 - ✅ 30+ tools for Claude interaction
 
-> **Update (2026-07):** Correction — the actual tool count is **28** (see `vibe-todo-mcp/src/index.ts`).
+> **Update (2026-07):** Correction — the actual tool count is **42** (see `vibe-todo-mcp/src/index.ts`).
 - ✅ Project tools (list, create, delete)
 - ✅ Epic tools (full CRUD + cascade delete)
 - ✅ Feature tools (full CRUD + cascade delete)
@@ -212,7 +212,7 @@ Claude: *uses mark-task-done tool, auto-updates parent feature*
 - ✅ `vibe-todo-mcp/SETUP_GUIDE.md` - Installation & configuration
 - ✅ `vibe-todo-mcp/TOOLS_REFERENCE.md` - All 30+ tools documented
 
-> **Update (2026-07):** Correction — **28 tools** total (verified against `vibe-todo-mcp/src/index.ts`).
+> **Update (2026-07):** Correction — **42 tools** total (verified against `vibe-todo-mcp/src/index.ts`).
 - ✅ `vibe-todo-mcp/USAGE_EXAMPLES.md` - Real-world scenarios
 - ✅ `vibe-todo-mcp/KEY_FEATURES.md` - Auto-status algorithm explained
 - ✅ `vibe-todo-mcp/TECHNICAL_IMPLEMENTATION.md` - Architecture deep dive
@@ -2581,7 +2581,7 @@ npm run build
    - Purpose: Complete tool documentation
    - Audience: Claude users, MCP developers
 
-   > **Update (2026-07):** Correction — **28 tools** total (verified in `vibe-todo-mcp/src/index.ts`).
+   > **Update (2026-07):** Correction — **42 tools** total (verified in `vibe-todo-mcp/src/index.ts`).
 
 9. **vibe-todo-mcp/USAGE_EXAMPLES.md** - Real-world examples
    - Purpose: How to use MCP in practice

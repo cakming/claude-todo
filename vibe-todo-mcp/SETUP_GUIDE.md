@@ -593,7 +593,7 @@ Use this checklist to verify everything is working:
 
 Once setup is complete:
 
-1. **Read the Tools Reference**: See `TOOLS_REFERENCE.md` for all 30+ available tools
+1. **Read the Tools Reference**: See `TOOLS_REFERENCE.md` for all 42 available tools
 2. **Try Example Sessions**: See `USAGE_EXAMPLES.md` for real-world scenarios
 3. **Understand Key Features**: See `KEY_FEATURES.md` for auto-status updates and more
 4. **Review Technical Details**: See main `README.md` for architecture

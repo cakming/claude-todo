@@ -21,7 +21,7 @@ A powerful todo management system designed for tracking coding tasks across diff
 - **Real-time Updates**: Toast notifications for all actions
 - **Responsive Design**: Works on desktop, tablet, and mobile
 - **MCP Server**: Custom Model Context Protocol server for Claude integration (30+ tools)
-  > **Update (2026-07):** No longer valid — the MCP server exposes **28 tools** (verified in `vibe-todo-mcp/src/index.ts`), not "30+".
+  > **Update (2026-07):** No longer valid — the MCP server now exposes **42 tools** (verified in `vibe-todo-mcp/src/index.ts`). It was 28 for the epic/feature/task tree; pages, comments, trash, and sharing tools were added later.
 - **Optional Authentication**: JWT-based authentication with bcrypt password hashing (configurable)
 - **Docs / Pages**: Per-project rich documents authored with a TipTap block editor
   > **Update (2026-07):** ✅ Shipped — TipTap block editor at `frontend/src/components/Common/RichEditor.jsx`; backend at `backend/src/routes/pages.js` + `pagesController.js`. Legacy markdown pages auto-convert on open.
@@ -164,7 +164,7 @@ claude-todo/
 ├── vibe-todo-mcp/             # Custom MCP server for Claude
 │   ├── src/
 │   │   ├── index.ts          # MCP server entry point
-│   │   ├── tools/            # 30+ MCP tools   (Update 2026-07: actually 28 tools)
+│   │   ├── tools/            # MCP tools   (Update 2026-07: 42 tools)
 │   │   └── utils/            # Validation & auto-status
 │   └── README.md
 │
@@ -360,7 +360,7 @@ Now you can interact naturally with Claude:
 
 The MCP server provides 30+ tools including:
 
-> **Update (2026-07):** No longer valid — the server exposes exactly **28 tools** (see `vibe-todo-mcp/src/index.ts`).
+> **Update (2026-07):** No longer valid — the server exposes **42 tools** (see `vibe-todo-mcp/src/index.ts`).
 
 - Project management
 - Epic/Feature/Task CRUD operations
