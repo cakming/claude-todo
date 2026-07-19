@@ -8,21 +8,23 @@ export async function getProjectTree(project: string): Promise<EpicWithProgress[
   const collection = getProjectCollection(project);
 
   // Get all epics
-  const epics = await collection.find({ type: 'epic' }).toArray();
+  const epics = await collection.find({ type: 'epic', deleted_at: null }).toArray();
 
   // Build tree with features and tasks
   const tree = await Promise.all(
     epics.map(async (epic) => {
       const features = await collection.find({
         type: 'feature',
-        epic_id: epic._id
+        epic_id: epic._id,
+        deleted_at: null
       }).toArray();
 
       const featuresWithTasks = await Promise.all(
         features.map(async (feature) => {
           const tasks = await collection.find({
             type: 'task',
-            feature_id: feature._id
+            feature_id: feature._id,
+            deleted_at: null
           }).toArray();
 
           const progress = await calculateProgress(collection, feature._id, 'feature');
@@ -56,7 +58,8 @@ export async function getEpicTree(project: string, epicId: string): Promise<Epic
   // Get the epic
   const epic = await collection.findOne({
     _id: new ObjectId(epicId),
-    type: 'epic'
+    type: 'epic',
+    deleted_at: null
   });
 
   if (!epic) {
@@ -66,7 +69,8 @@ export async function getEpicTree(project: string, epicId: string): Promise<Epic
   // Get all features for this epic
   const features = await collection.find({
     type: 'feature',
-    epic_id: epic._id
+    epic_id: epic._id,
+    deleted_at: null
   }).toArray();
 
   // Get tasks for each feature
@@ -74,7 +78,8 @@ export async function getEpicTree(project: string, epicId: string): Promise<Epic
     features.map(async (feature) => {
       const tasks = await collection.find({
         type: 'task',
-        feature_id: feature._id
+        feature_id: feature._id,
+        deleted_at: null
       }).toArray();
 
       const progress = await calculateProgress(collection, feature._id, 'feature');

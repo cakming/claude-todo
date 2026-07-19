@@ -7,7 +7,7 @@ import { updateParentStatus } from '../utils/statusUpdates.js';
 export async function listFeatures(project: string, epicId?: string): Promise<Feature[]> {
   const collection = getProjectCollection(project);
 
-  const query: any = { type: 'feature' };
+  const query: any = { type: 'feature', deleted_at: null };
   if (epicId) {
     validateObjectId(epicId, 'epicId');
     query.epic_id = new ObjectId(epicId);
@@ -22,7 +22,8 @@ export async function getFeature(project: string, featureId: string): Promise<Fe
   const collection = getProjectCollection(project);
   const feature = await collection.findOne({
     _id: new ObjectId(featureId),
-    type: 'feature'
+    type: 'feature',
+    deleted_at: null
   }) as Feature | null;
 
   if (!feature) {

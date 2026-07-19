@@ -5,7 +5,7 @@ import { validateTitle, validateEpicStatus, validateObjectId } from '../utils/va
 
 export async function listEpics(project: string): Promise<Epic[]> {
   const collection = getProjectCollection(project);
-  return await collection.find({ type: 'epic' }).toArray() as Epic[];
+  return await collection.find({ type: 'epic', deleted_at: null }).toArray() as Epic[];
 }
 
 export async function getEpic(project: string, epicId: string): Promise<Epic> {
@@ -14,7 +14,8 @@ export async function getEpic(project: string, epicId: string): Promise<Epic> {
   const collection = getProjectCollection(project);
   const epic = await collection.findOne({
     _id: new ObjectId(epicId),
-    type: 'epic'
+    type: 'epic',
+    deleted_at: null
   }) as Epic | null;
 
   if (!epic) {

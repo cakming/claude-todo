@@ -13,6 +13,10 @@ import * as featureTools from './tools/featureTools.js';
 import * as taskTools from './tools/taskTools.js';
 import * as treeTools from './tools/treeTools.js';
 import * as searchTools from './tools/searchTools.js';
+import * as pagesTools from './tools/pagesTools.js';
+import * as commentsTools from './tools/commentsTools.js';
+import * as trashTools from './tools/trashTools.js';
+import * as sharesTools from './tools/sharesTools.js';
 
 const server = new Server(
   {
@@ -623,6 +627,189 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['project'],
         },
       },
+
+      // Docs / page tools
+      {
+        name: 'list_pages',
+        description: 'List a project\'s doc pages (newest updated first). Optional text search over title/body.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            search: { type: 'string', description: 'Optional text search over title and body' },
+          },
+          required: ['project'],
+        },
+      },
+      {
+        name: 'get_page',
+        description: 'Get a single doc page by id',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            pageId: { type: 'string', description: 'Page ID (MongoDB ObjectId)' },
+          },
+          required: ['project', 'pageId'],
+        },
+      },
+      {
+        name: 'create_page',
+        description: 'Create a doc page (free-form note). Body accepts markdown/HTML text.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            title: { type: 'string', description: 'Page title' },
+            body: { type: 'string', description: 'Page body (optional)' },
+          },
+          required: ['project', 'title'],
+        },
+      },
+      {
+        name: 'update_page',
+        description: 'Update a doc page\'s title and/or body',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            pageId: { type: 'string', description: 'Page ID' },
+            title: { type: 'string', description: 'New title (optional)' },
+            body: { type: 'string', description: 'New body (optional)' },
+          },
+          required: ['project', 'pageId'],
+        },
+      },
+      {
+        name: 'delete_page',
+        description: 'Soft-delete a doc page (moves it to the trash; restorable via restore_trash). Returns the batch id.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            pageId: { type: 'string', description: 'Page ID' },
+          },
+          required: ['project', 'pageId'],
+        },
+      },
+
+      // Comment tools
+      {
+        name: 'list_comments',
+        description: 'List comments on an epic, feature, or task (oldest first)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            targetType: { type: 'string', enum: ['epic', 'feature', 'task'], description: 'Type of item the comments are attached to' },
+            targetId: { type: 'string', description: 'ID of the epic/feature/task' },
+          },
+          required: ['project', 'targetType', 'targetId'],
+        },
+      },
+      {
+        name: 'add_comment',
+        description: 'Add a comment to an epic, feature, or task. @mentions in the body are parsed and recorded.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            targetType: { type: 'string', enum: ['epic', 'feature', 'task'], description: 'Type of item to comment on' },
+            targetId: { type: 'string', description: 'ID of the epic/feature/task' },
+            body: { type: 'string', description: 'Comment text (supports @username mentions)' },
+            author: { type: 'string', description: 'Comment author username (default: mcp)' },
+          },
+          required: ['project', 'targetType', 'targetId', 'body'],
+        },
+      },
+      {
+        name: 'delete_comment',
+        description: 'Delete a comment by id',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            commentId: { type: 'string', description: 'Comment ID' },
+          },
+          required: ['project', 'commentId'],
+        },
+      },
+
+      // Trash tools
+      {
+        name: 'list_trash',
+        description: 'List trashed (soft-deleted) items grouped by delete batch. Also lazily purges items past the retention window.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+          },
+          required: ['project'],
+        },
+      },
+      {
+        name: 'restore_trash',
+        description: 'Restore a whole delete batch from the trash and recompute affected parent statuses',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            batch: { type: 'string', description: 'Batch id (from list_trash)' },
+          },
+          required: ['project', 'batch'],
+        },
+      },
+      {
+        name: 'purge_trash',
+        description: 'Permanently delete a trashed batch, or all trash when batch is "all" (WARNING: not reversible)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            batch: { type: 'string', description: 'Batch id to purge, or "all" for the entire trash' },
+          },
+          required: ['project', 'batch'],
+        },
+      },
+
+      // Share tools
+      {
+        name: 'list_shares',
+        description: 'List public read-only share links for a project',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+          },
+          required: ['project'],
+        },
+      },
+      {
+        name: 'create_share',
+        description: 'Create a public read-only share link for a whole project tree or a single doc page. Returns the token and path (/s/<token>).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            scope: { type: 'string', enum: ['project', 'page'], description: 'Share the whole project tree (default) or a single page' },
+            pageId: { type: 'string', description: 'Page ID (required when scope is "page")' },
+            expiresInDays: { type: 'number', description: 'Optional expiry in days (positive number); omit for no expiry' },
+          },
+          required: ['project'],
+        },
+      },
+      {
+        name: 'revoke_share',
+        description: 'Revoke (delete) a share link by token',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name' },
+            token: { type: 'string', description: 'Share token to revoke' },
+          },
+          required: ['project', 'token'],
+        },
+      },
     ],
   };
 });
@@ -1033,6 +1220,214 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 null,
                 2
               ),
+            },
+          ],
+        };
+
+      // Docs / page tools
+      case 'list_pages':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await pagesTools.listPages(args.project as string, args.search as string | undefined),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'get_page':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await pagesTools.getPage(args.project as string, args.pageId as string),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'create_page':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await pagesTools.createPage(
+                  args.project as string,
+                  args.title as string,
+                  args.body as string | undefined
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'update_page':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await pagesTools.updatePage(args.project as string, args.pageId as string, {
+                  title: args.title as string | undefined,
+                  body: args.body as string | undefined,
+                }),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'delete_page':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await pagesTools.deletePage(args.project as string, args.pageId as string),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      // Comment tools
+      case 'list_comments':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await commentsTools.listComments(
+                  args.project as string,
+                  args.targetType as string,
+                  args.targetId as string
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'add_comment':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await commentsTools.addComment(
+                  args.project as string,
+                  args.targetType as string,
+                  args.targetId as string,
+                  args.body as string,
+                  args.author as string | undefined
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'delete_comment':
+        await commentsTools.deleteComment(args.project as string, args.commentId as string);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Comment deleted successfully`,
+            },
+          ],
+        };
+
+      // Trash tools
+      case 'list_trash':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await trashTools.listTrash(args.project as string), null, 2),
+            },
+          ],
+        };
+
+      case 'restore_trash':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await trashTools.restoreTrash(args.project as string, args.batch as string),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'purge_trash':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await trashTools.purgeTrash(args.project as string, args.batch as string),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      // Share tools
+      case 'list_shares':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(await sharesTools.listShares(args.project as string), null, 2),
+            },
+          ],
+        };
+
+      case 'create_share':
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                await sharesTools.createShare(
+                  args.project as string,
+                  args.scope as any,
+                  args.pageId as string | undefined,
+                  args.expiresInDays as number | undefined
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case 'revoke_share':
+        await sharesTools.revokeShare(args.project as string, args.token as string);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Share revoked successfully`,
             },
           ],
         };

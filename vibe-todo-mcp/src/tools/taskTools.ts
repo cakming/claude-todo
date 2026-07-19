@@ -7,7 +7,7 @@ import { updateParentStatus } from '../utils/statusUpdates.js';
 export async function listTasks(project: string, featureId?: string): Promise<Task[]> {
   const collection = getProjectCollection(project);
 
-  const query: any = { type: 'task' };
+  const query: any = { type: 'task', deleted_at: null };
   if (featureId) {
     validateObjectId(featureId, 'featureId');
     query.feature_id = new ObjectId(featureId);
@@ -22,7 +22,8 @@ export async function getTask(project: string, taskId: string): Promise<Task> {
   const collection = getProjectCollection(project);
   const task = await collection.findOne({
     _id: new ObjectId(taskId),
-    type: 'task'
+    type: 'task',
+    deleted_at: null
   }) as Task | null;
 
   if (!task) {
