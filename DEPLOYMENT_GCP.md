@@ -258,6 +258,34 @@ Your GCP environment has PostgreSQL available. While this app uses MongoDB, you 
 
 **If you want to use PostgreSQL:** Create a GitHub issue and I'll help with migration!
 
+### Image storage: Google Cloud Storage (recommended)
+
+By default, uploaded images are stored in MongoDB via GridFS. In production,
+point them at a GCS bucket instead so the database stays lean:
+
+```bash
+# 1. Create a bucket (uniform access, private).
+gcloud storage buckets create gs://vibe-todo-uploads --location=US
+
+# 2. Grant the VM's service account read/write on the bucket.
+gcloud storage buckets add-iam-policy-binding gs://vibe-todo-uploads \
+  --member="serviceAccount:VM_SERVICE_ACCOUNT@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+```
+
+Then set in the backend `.env`:
+
+```bash
+GCS_BUCKET=vibe-todo-uploads
+# On a Google VM, credentials come from the metadata server automatically.
+# Off-GCP, point at a service-account key instead:
+# GOOGLE_APPLICATION_CREDENTIALS=/etc/vibe-todo/gcs-key.json
+```
+
+Uploads then stream to/from GCS. Image URLs are unchanged
+(`/api/:project/uploads/:token`), so switching backends doesn't break images
+already embedded in docs. Leave `GCS_BUCKET` unset to keep using GridFS.
+
 ### Using Redis (Optional)
 
 Redis is available but not currently used. Future use cases:

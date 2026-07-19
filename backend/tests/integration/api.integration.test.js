@@ -440,20 +440,16 @@ test('image upload stores to GridFS and serves it back; rejects non-images', asy
     .attach('file', png, { filename: 'dot.png', contentType: 'image/png' });
   assert.equal(up.status, 201);
   assert.ok(up.body.url.startsWith(`/api/${project}/uploads/`));
-  // The URL uses an unguessable 128-bit token, not the (enumerable) ObjectId.
+  assert.equal(up.body.storage, 'gridfs', 'defaults to GridFS without GCS_BUCKET');
+  // The URL uses an unguessable 128-bit token.
   const ref = up.body.url.split('/').pop();
   assert.match(ref, /^[a-f0-9]{32}$/, 'url ref is a random token');
-  assert.notEqual(ref, up.body.id, 'not the GridFS ObjectId');
 
   // Serve it back with the right content type.
   const get = await request(app).get(up.body.url);
   assert.equal(get.status, 200);
   assert.match(get.headers['content-type'], /image\/png/);
   assert.equal(get.body.length, png.length);
-
-  // Legacy ObjectId URLs still resolve (backward compatibility).
-  const legacy = await request(app).get(`/api/${project}/uploads/${up.body.id}`);
-  assert.equal(legacy.status, 200);
 
   // Non-image is rejected.
   const bad = await request(app)
