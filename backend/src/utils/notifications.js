@@ -1,5 +1,6 @@
 import logger from './logger.js';
 import { sendMail } from './mailer.js';
+import { sendTelegram } from './telegram.js';
 
 // A small, pluggable notification layer. notifyUser() dispatches an event to
 // every channel a user has configured — email (always available when the user
@@ -15,17 +16,6 @@ export function channelsFor(user) {
     email: !!user?.email,
     telegram: !!(process.env.TELEGRAM_BOT_TOKEN && user?.telegram_chat_id)
   };
-}
-
-async function sendTelegram(chatId, text) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token || !chatId) return false;
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text })
-  });
-  return res.ok;
 }
 
 /**

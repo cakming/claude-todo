@@ -7,7 +7,9 @@ import {
   changePassword,
   forgotPassword,
   resetPassword,
-  linkTelegram
+  telegramConnect,
+  telegramStatus,
+  telegramDisconnect
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 
@@ -63,10 +65,11 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
 /**
- * @route   POST /api/auth/telegram-link
- * @desc    Link/unlink the current user's Telegram chat id for notifications
- * @access  Private (requires authentication)
+ * Telegram notification linking (requires authentication).
+ * connect -> get a deep link; status -> check if linked; disconnect -> unlink.
  */
-router.post('/telegram-link', authenticate, linkTelegram);
+router.post('/telegram/connect', authenticate, telegramConnect);
+router.get('/telegram/status', authenticate, telegramStatus);
+router.post('/telegram/disconnect', authenticate, telegramDisconnect);
 
 export default router;

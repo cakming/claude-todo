@@ -582,6 +582,25 @@ test('comments: add, list with parsed mentions, and delete on a task', async () 
   assert.equal(tree.body.data[0].features[0].tasks.length, 1, 'only the task, no comment docs');
 });
 
+test('telegram /start <code> auto-links the chat id to the account', async () => {
+  const { handleUpdate } = await import('../../src/utils/telegram.js');
+  const db = getDB();
+  await db.collection('users').insertOne({ username: 'zoe', email: 'z@e.com' });
+  await db.collection('telegram_links').insertOne({ code: 'abc123', username: 'zoe', created_at: new Date() });
+
+  await handleUpdate({ message: { chat: { id: 55501 }, text: '/start abc123' } });
+
+  const user = await db.collection('users').findOne({ username: 'zoe' });
+  assert.equal(user.telegram_chat_id, '55501', 'chat id captured automatically');
+  const link = await db.collection('telegram_links').findOne({ code: 'abc123' });
+  assert.equal(link, null, 'the one-time code is consumed');
+
+  // An unknown code links nothing and does not throw.
+  await handleUpdate({ message: { chat: { id: 999 }, text: '/start nope' } });
+  const zoe = await db.collection('users').findOne({ username: 'zoe' });
+  assert.equal(zoe.telegram_chat_id, '55501', 'unchanged by an invalid code');
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 

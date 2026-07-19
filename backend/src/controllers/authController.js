@@ -4,6 +4,7 @@ import { getDB } from '../config/mongodb.js';
 import { hashPassword, comparePassword, validatePassword, validateEmail } from '../utils/auth.js';
 import { generateToken } from '../utils/jwt.js';
 import { sendMail } from '../utils/mailer.js';
+import { getBotUsername } from '../utils/telegram.js';
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -374,28 +375,69 @@ export async function verifyToken(req, res) {
 }
 
 /**
- * Link or unlink the current user's Telegram chat id for notifications.
- * Body: { chat_id } — pass an empty value to unlink.
+ * Start Telegram linking: generate a one-time code and return a deep link the
+ * user opens to press Start. The bot's poller captures their chat id.
  */
-export async function linkTelegram(req, res) {
+export async function telegramConnect(req, res) {
   try {
     const username = req.user?.username;
     if (!username) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
-    const raw = req.body?.chat_id;
-    const value = raw ? String(raw).trim() : null;
-
-    const result = await getUsersCollection().updateOne(
-      { username },
-      { $set: { telegram_chat_id: value } }
-    );
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
+      return res.status(503).json({ success: false, message: 'Telegram is not configured on this server' });
     }
-    res.json({ success: true, message: value ? 'Telegram linked' : 'Telegram unlinked' });
+    const botUsername = await getBotUsername();
+    if (!botUsername) {
+      return res.status(503).json({ success: false, message: 'Could not resolve the Telegram bot' });
+    }
+
+    const code = crypto.randomBytes(8).toString('hex');
+    const links = getDB().collection('telegram_links');
+    await links.deleteMany({ username }); // one pending code per user
+    await links.insertOne({ code, username, created_at: new Date() });
+
+    res.json({ success: true, code, url: `https://t.me/${botUsername}?start=${code}` });
   } catch (error) {
-    console.error('Error linking Telegram:', error);
-    res.status(500).json({ success: false, message: 'Failed to update Telegram link' });
+    console.error('Error starting Telegram connect:', error);
+    res.status(500).json({ success: false, message: 'Failed to start Telegram linking' });
+  }
+}
+
+/**
+ * Report whether the current user has Telegram linked.
+ */
+export async function telegramStatus(req, res) {
+  try {
+    const username = req.user?.username;
+    if (!username) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    const user = await getUsersCollection().findOne({ username });
+    res.json({
+      success: true,
+      linked: !!user?.telegram_chat_id,
+      configured: !!process.env.TELEGRAM_BOT_TOKEN
+    });
+  } catch (error) {
+    console.error('Error checking Telegram status:', error);
+    res.status(500).json({ success: false, message: 'Failed to check Telegram status' });
+  }
+}
+
+/**
+ * Unlink Telegram for the current user.
+ */
+export async function telegramDisconnect(req, res) {
+  try {
+    const username = req.user?.username;
+    if (!username) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    await getUsersCollection().updateOne({ username }, { $set: { telegram_chat_id: null } });
+    res.json({ success: true, message: 'Telegram unlinked' });
+  } catch (error) {
+    console.error('Error unlinking Telegram:', error);
+    res.status(500).json({ success: false, message: 'Failed to unlink Telegram' });
   }
 }

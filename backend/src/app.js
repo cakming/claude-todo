@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
 import { Server as SocketIOServer } from 'socket.io';
 import logger from './utils/logger.js';
+import { startTelegramPolling } from './utils/telegram.js';
 import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -137,6 +138,10 @@ async function startServer() {
       cors: { origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }
     });
     setIO(io);
+
+    // Start the Telegram bot poller for one-click account linking (no-op unless
+    // TELEGRAM_BOT_TOKEN is set). Runs in the background.
+    startTelegramPolling().catch((e) => logger.warn({ err: e }, 'telegram poller failed to start'));
 
     // Start listening
     server.listen(PORT, () => {

@@ -411,11 +411,17 @@ configured). Author comes from the authenticated user.
 
 Delete a comment.
 
-### POST /api/auth/telegram-link
+### Telegram linking (requires auth)
 
-Link/unlink the current user's Telegram chat id. Body: `{ chat_id }` (empty to
-unlink). Requires auth. Telegram delivery also needs `TELEGRAM_BOT_TOKEN` set on
-the server; email notifications work with SMTP configured (see `.env.example`).
+One-click flow — the server's bot poller captures the chat id automatically:
+
+- `POST /api/auth/telegram/connect` → `{ code, url }`. Open `url` (a
+  `t.me/<bot>?start=<code>` deep link) and press Start.
+- `GET /api/auth/telegram/status` → `{ linked, configured }`.
+- `POST /api/auth/telegram/disconnect` → unlink.
+
+Telegram delivery needs `TELEGRAM_BOT_TOKEN` set on the server; email
+notifications work with SMTP configured (see `.env.example`).
 
 ---
 

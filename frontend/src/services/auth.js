@@ -115,21 +115,40 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 /**
- * Link or unlink the current user's Telegram chat id for notifications.
+ * Start Telegram linking — returns a deep link the user opens to press Start.
  */
-export async function linkTelegram(chatId) {
-  const response = await fetch(`${API_BASE_URL}/auth/telegram-link`, {
+export async function telegramConnect() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/connect`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders()
-    },
-    body: JSON.stringify({ chat_id: chatId })
+    headers: getAuthHeaders()
   });
   const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to update Telegram link');
-  }
+  if (!response.ok) throw new Error(data.message || 'Failed to start Telegram linking');
+  return data;
+}
+
+/**
+ * Check whether the current user has Telegram linked.
+ */
+export async function telegramStatus() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/status`, {
+    headers: getAuthHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to check Telegram status');
+  return data;
+}
+
+/**
+ * Unlink Telegram for the current user.
+ */
+export async function telegramDisconnect() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/disconnect`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to unlink Telegram');
   return data;
 }
 

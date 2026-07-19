@@ -52,7 +52,7 @@ test('first user is admin: can see Users view and change password', async ({ pag
   await expect(page.getByRole('heading', { name: 'Change Password' })).toHaveCount(0);
 });
 
-test('a user can link a Telegram chat id for notifications', async ({ page }) => {
+test('notifications modal shows email delivery and Telegram status', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Register here' }).click();
   await page.getByLabel('Username').fill('nina');
@@ -64,9 +64,9 @@ test('a user can link a Telegram chat id for notifications', async ({ page }) =>
 
   await page.getByRole('button', { name: 'Notifications' }).click();
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
-  await page.getByLabel('Telegram chat id').fill('123456789');
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Telegram linked')).toBeVisible();
+  await expect(page.getByText(/@mentions/)).toBeVisible();
+  // No TELEGRAM_BOT_TOKEN in the test env -> Telegram shows as unavailable.
+  await expect(page.getByText(/Telegram isn't set up/)).toBeVisible();
 });
 
 test('forgot-password shows confirmation and reset opens from a link', async ({ page }) => {
