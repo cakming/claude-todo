@@ -252,25 +252,30 @@ test('tasks accept and return a due_date', async () => {
   assert.equal(task.body.data.due_date, '2026-12-31');
 });
 
-test('export then import copies a project into another', async () => {
+test('export then import copies a project into another (incl. doc pages)', async () => {
   const src = await makeProject('src');
   const epic = await request(app).post(`/api/${src}/epics`).send({ title: 'Exported Epic' });
   await request(app)
     .post(`/api/${src}/features/by-epic/${epic.body.data._id}`)
     .send({ title: 'Exported Feature' });
+  await request(app).post(`/api/${src}/pages`).send({ title: 'Exported Doc', body: '# Notes' });
 
   const exported = await request(app).get(`/api/${src}/export`);
   assert.equal(exported.status, 200);
-  assert.equal(exported.body.data.length, 2);
+  assert.equal(exported.body.data.length, 3, 'epic + feature + page exported');
 
   const dst = await makeProject('dst');
   const imported = await request(app).post(`/api/${dst}/import`).send({ data: exported.body.data });
   assert.equal(imported.status, 200);
-  assert.equal(imported.body.imported, 2);
+  assert.equal(imported.body.imported, 3);
 
   const epicsInDst = await request(app).get(`/api/${dst}/epics`);
   assert.equal(epicsInDst.body.data.length, 1);
   assert.equal(epicsInDst.body.data[0].title, 'Exported Epic');
+
+  const pagesInDst = await request(app).get(`/api/${dst}/pages`);
+  assert.equal(pagesInDst.body.data.length, 1, 'the doc page came across too');
+  assert.equal(pagesInDst.body.data[0].title, 'Exported Doc');
 });
 
 test('bulk status and bulk delete update tasks and their parent feature', async () => {

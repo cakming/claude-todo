@@ -3,7 +3,7 @@ import { getProjectCollection } from '../config/mongodb.js';
 import { DOC_TYPES } from '../models/schemas.js';
 import { emitProjectUpdate } from '../realtime.js';
 
-const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK];
+const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK, DOC_TYPES.PAGE];
 
 /** Export a project's epics, features, and tasks as JSON. */
 export async function exportProject(req, res) {

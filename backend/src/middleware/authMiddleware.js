@@ -82,6 +82,23 @@ export function requireRole(...roles) {
 }
 
 /**
+ * Block mutating requests (POST/PUT/PATCH/DELETE) for users with the 'viewer'
+ * role, making viewer accounts read-only. Reads pass through. No-op in open
+ * mode (auth disabled). Apply after `authenticate` on write surfaces.
+ */
+export function blockWritesForViewer(req, res, next) {
+  if (!isAuthEnabled()) return next();
+  const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  if (isWrite && req.user?.role === 'viewer') {
+    return res.status(403).json({
+      success: false,
+      message: 'Your account is read-only (viewer) and cannot make changes'
+    });
+  }
+  next();
+}
+
+/**
  * Optional authentication middleware - authenticates if token present, but doesn't require it
  * @param {Object} req - Express request
  * @param {Object} res - Express response

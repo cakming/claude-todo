@@ -11,7 +11,7 @@ import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.j
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
-import { authenticate, isAuthEnabled, requireRole } from './middleware/authMiddleware.js';
+import { authenticate, isAuthEnabled, requireRole, blockWritesForViewer } from './middleware/authMiddleware.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -85,25 +85,26 @@ app.get('/api/public/:token', getPublicShare);
 // Admin routes (require the 'admin' role when auth is enabled)
 app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
-// API Routes (protected if AUTH_ENABLED=true)
-app.use('/api/projects', authenticate, projectRoutes);
+// API Routes (protected if AUTH_ENABLED=true). blockWritesForViewer makes
+// 'viewer'-role accounts read-only (it only blocks POST/PUT/PATCH/DELETE).
+app.use('/api/projects', authenticate, blockWritesForViewer, projectRoutes);
 
 // Project-scoped routes (require project validation + auth if enabled)
-app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
-app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
-app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
+app.use('/api/:project/epics', authenticate, blockWritesForViewer, validateProject, epicRoutes);
+app.use('/api/:project/features', authenticate, blockWritesForViewer, validateProject, featureRoutes);
+app.use('/api/:project/tasks', authenticate, blockWritesForViewer, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
-app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
-app.use('/api/:project/shares', authenticate, validateProject, shareRoutes);
-app.use('/api/:project/trash', authenticate, validateProject, trashRoutes);
-app.use('/api/:project/comments', authenticate, validateProject, commentRoutes);
+app.use('/api/:project/pages', authenticate, blockWritesForViewer, validateProject, pageRoutes);
+app.use('/api/:project/shares', authenticate, blockWritesForViewer, validateProject, shareRoutes);
+app.use('/api/:project/trash', authenticate, blockWritesForViewer, validateProject, trashRoutes);
+app.use('/api/:project/comments', authenticate, blockWritesForViewer, validateProject, commentRoutes);
 // Uploads apply auth per-route (POST authed, GET public) so image tags load.
 app.use('/api/:project/uploads', validateProject, uploadRoutes);
 
-// Project export / import (JSON).
+// Project export / import (JSON). Import is a write -> viewers blocked.
 app.get('/api/:project/export', authenticate, validateProject, exportProject);
-app.post('/api/:project/import', authenticate, validateProject, importProject);
+app.post('/api/:project/import', authenticate, blockWritesForViewer, validateProject, importProject);
 
 // Test-only endpoint to reset the database between E2E tests. Gated behind
 // E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs

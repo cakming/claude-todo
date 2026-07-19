@@ -1,7 +1,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { authenticate, optionalAuthenticate, isAuthEnabled, requireRole } from '../src/middleware/authMiddleware.js';
+import { authenticate, optionalAuthenticate, isAuthEnabled, requireRole, blockWritesForViewer } from '../src/middleware/authMiddleware.js';
 import { generateToken } from '../src/utils/jwt.js';
 
 function makeRes() {
@@ -141,4 +141,36 @@ test('requireRole passes an admin and blocks a non-admin with 403', () => {
   });
   assert.equal(blockedNext, false);
   assert.equal(res.statusCode, 403);
+});
+
+test('blockWritesForViewer: no-op when auth is disabled', () => {
+  const res = makeRes();
+  let called = false;
+  blockWritesForViewer({ method: 'POST', user: { role: 'viewer' } }, res, () => { called = true; });
+  assert.equal(called, true, 'open mode lets everything through');
+});
+
+test('blockWritesForViewer: viewer can read but not write (auth on)', () => {
+  process.env.AUTH_ENABLED = 'true';
+
+  // Reads pass.
+  let readNext = false;
+  blockWritesForViewer({ method: 'GET', user: { role: 'viewer' } }, makeRes(), () => { readNext = true; });
+  assert.equal(readNext, true);
+
+  // Writes are blocked with 403.
+  const res = makeRes();
+  let writeNext = false;
+  blockWritesForViewer({ method: 'DELETE', user: { role: 'viewer' } }, res, () => { writeNext = true; });
+  assert.equal(writeNext, false);
+  assert.equal(res.statusCode, 403);
+});
+
+test('blockWritesForViewer: non-viewer roles can write (auth on)', () => {
+  process.env.AUTH_ENABLED = 'true';
+  for (const role of ['admin', 'editor', 'member']) {
+    let next = false;
+    blockWritesForViewer({ method: 'POST', user: { role } }, makeRes(), () => { next = true; });
+    assert.equal(next, true, `${role} can write`);
+  }
 });
