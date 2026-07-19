@@ -469,13 +469,39 @@ DB_NAME=vibe_todo_manager
 PORT=3001
 NODE_ENV=production
 
-# CORS - Set to your domain
+# CORS - Set to your domain (same origin as the frontend)
 CORS_ORIGIN=https://yourdomain.com
 
-# Authentication
+# Authentication (REQUIRED in production)
+# JWT_SECRET must be a strong random value — without it, tokens are signed with
+# an insecure default. Generate one with: openssl rand -hex 32
 AUTH_ENABLED=true
 JWT_SECRET=GENERATE_STRONG_SECRET_HERE
 JWT_EXPIRES_IN=7d
+
+# Email notifications + password reset (recommended when AUTH_ENABLED=true).
+# Without SMTP_HOST, emails are only logged to the console.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+MAIL_FROM=no-reply@yourdomain.com
+
+# Telegram @mention notifications (optional). Create a bot with @BotFather.
+# The server runs a poller so users link with one click in the app.
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
+
+# Image storage (optional): store uploads in a Google Cloud Storage bucket
+# instead of MongoDB/GridFS. On a Google VM, credentials come from the metadata
+# server automatically. See "Image storage: Google Cloud Storage" above.
+GCS_BUCKET=
+# GOOGLE_APPLICATION_CREDENTIALS=/etc/vibe-todo/gcs-key.json
+
+# Operational (optional; sensible defaults)
+LOG_LEVEL=info
+TRASH_RETENTION_DAYS=30
 ```
 
 **Generate strong JWT secret:**
@@ -485,6 +511,10 @@ openssl rand -hex 32
 # Copy output to JWT_SECRET in .env
 ```
 
+> **Note:** the backend logs structured JSON via pino. On start you'll see a
+> single JSON line containing `"msg":"🚀 Vibe Todo API server running on port
+> 3001"` and `"authEnabled":true`, rather than the multi-line banner.
+
 ### 4. Test Backend
 
 ```bash
@@ -492,11 +522,9 @@ openssl rand -hex 32
 cd /var/www/vibe-todo/backend
 npm start
 
-# You should see:
-# 🚀 Vibe Todo API server running on port 3001
-# 📍 API endpoint: http://localhost:3001
-# 🏥 Health check: http://localhost:3001/health
-# 🔐 Authentication: ENABLED
+# You should see a JSON log line like:
+# {"level":30,"time":...,"port":3001,"authEnabled":true,"msg":"🚀 Vibe Todo API server running on port 3001"}
+# If TELEGRAM_BOT_TOKEN is set you'll also see: "Telegram bot polling started"
 
 # Test health endpoint
 curl http://localhost:3001/health
@@ -588,11 +616,19 @@ nano .env
 
 **Frontend .env:**
 ```env
-# API URL - use your domain or VM IP
+# API URL - use your domain or VM IP. Same-origin /api keeps the app, its API,
+# and /socket.io on one host (recommended).
 VITE_API_URL=https://yourdomain.com/api
 # Or for testing with IP:
 # VITE_API_URL=http://YOUR_VM_EXTERNAL_IP/api
+
+# Optional: error monitoring. Leave blank to disable Sentry entirely.
+VITE_SENTRY_DSN=
 ```
+
+> **Important:** Vite env vars are baked in at **build time**. If you change
+> `VITE_API_URL` or `VITE_SENTRY_DSN`, you must re-run `npm run build` and
+> redeploy `dist/` — editing `.env` on a built app has no effect.
 
 ```bash
 # Build for production
@@ -646,6 +682,9 @@ server {
     # Root directory for frontend
     root /var/www/html/vibe-todo;
     index index.html;
+
+    # Allow image uploads (the app caps them at 5 MB; nginx defaults to 1 MB).
+    client_max_body_size 10M;
     
     # Gzip compression
     gzip on;
@@ -681,6 +720,20 @@ server {
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
+
+    # Socket.IO (WebSocket) - real-time updates. REQUIRED: without this the
+    # client's /socket.io connection falls through to index.html and real-time
+    # silently stops working.
+    location /socket.io/ {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+    }
     
     # Health check endpoint
     location /health {
@@ -709,6 +762,7 @@ server {
     
     root /var/www/html/vibe-todo;
     index index.html;
+    client_max_body_size 10M;
     
     location / {
         try_files $uri $uri/ /index.html;
@@ -720,6 +774,15 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /socket.io/ {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
     }
     
     location /health {
@@ -1407,7 +1470,12 @@ gcloud builds triggers create github \
 - [ ] HTTPS working correctly
 - [ ] Can create projects, epics, features, tasks
 - [ ] Auto-status update working
-- [ ] Authentication working (if enabled)
+- [ ] **Real-time works** — a change in one tab appears in another (verifies the
+      `/socket.io/` nginx block)
+- [ ] **Image upload works** in Docs (verifies `client_max_body_size`)
+- [ ] Authentication working (AUTH_ENABLED=true, strong JWT_SECRET)
+- [ ] Email notifications/password reset working (SMTP configured)
+- [ ] Telegram connect working (if TELEGRAM_BOT_TOKEN set)
 - [ ] Uptime monitoring configured
 - [ ] Backup scripts scheduled
 - [ ] Logs being collected
