@@ -21,7 +21,20 @@ A powerful todo management system designed for tracking coding tasks across diff
 - **Real-time Updates**: Toast notifications for all actions
 - **Responsive Design**: Works on desktop, tablet, and mobile
 - **MCP Server**: Custom Model Context Protocol server for Claude integration (30+ tools)
+  > **Update (2026-07):** No longer valid — the MCP server exposes **28 tools** (verified in `vibe-todo-mcp/src/index.ts`), not "30+".
 - **Optional Authentication**: JWT-based authentication with bcrypt password hashing (configurable)
+- **Docs / Pages**: Per-project rich documents authored with a TipTap block editor
+  > **Update (2026-07):** ✅ Shipped — TipTap block editor at `frontend/src/components/Common/RichEditor.jsx`; backend at `backend/src/routes/pages.js` + `pagesController.js`. Legacy markdown pages auto-convert on open.
+- **Persistent Trash Bin**: Deletes are soft; a Trash view restores or purges items
+  > **Update (2026-07):** ✅ Shipped — `backend/src/routes/trash.js` + `trashController.js` (soft-delete via `deleted_at`).
+- **Public Sharing Links**: Read-only share links (whole project tree or a single doc page), with optional expiry (TTL)
+  > **Update (2026-07):** ✅ Shipped — `backend/src/routes/shares.js` + `sharesController.js`; 128-bit unguessable tokens, optional `expiresInDays` TTL.
+- **Comments & @mentions**: Threaded comments with @mentions and notifications
+  > **Update (2026-07):** ✅ Shipped — `backend/src/routes/comments.js` + `commentsController.js`; notifications via email (`utils/mailer.js`) and Telegram (`utils/telegram.js`).
+- **Image Upload**: Pluggable image storage — GridFS (MongoDB) or Google Cloud Storage
+  > **Update (2026-07):** ✅ Shipped — `backend/src/utils/storage.js`; set `GCS_BUCKET` to use GCS, otherwise GridFS. Images addressed by 128-bit token URLs.
+- **Roles / RBAC**: Role-based access control — `admin`, `editor`, `member`, `viewer` (viewers are read-only)
+  > **Update (2026-07):** ✅ Shipped — `VALID_ROLES` in `backend/src/controllers/userController.js`; enforced by `requireRole` / `blockWritesForViewer` in `backend/src/app.js`.
 
 ## 🏗️ Architecture
 
@@ -51,6 +64,7 @@ A powerful todo management system designed for tracking coding tasks across diff
 ## 📋 Prerequisites
 
 - **Node.js** v16 or higher
+  > **Update (2026-07):** No longer valid — **Node.js v18+** is the supported/tested version (deployment targets Node 18 and the MCP server declares `@types/node ^20`). Use v18 or higher.
 - **MongoDB** 4.4 or higher (local or Atlas)
 - **npm** or **yarn**
 
@@ -150,7 +164,7 @@ claude-todo/
 ├── vibe-todo-mcp/             # Custom MCP server for Claude
 │   ├── src/
 │   │   ├── index.ts          # MCP server entry point
-│   │   ├── tools/            # 30+ MCP tools
+│   │   ├── tools/            # 30+ MCP tools   (Update 2026-07: actually 28 tools)
 │   │   └── utils/            # Validation & auto-status
 │   └── README.md
 │
@@ -345,6 +359,9 @@ Now you can interact naturally with Claude:
 **See [vibe-todo-mcp/README.md](./vibe-todo-mcp/README.md) for complete documentation.**
 
 The MCP server provides 30+ tools including:
+
+> **Update (2026-07):** No longer valid — the server exposes exactly **28 tools** (see `vibe-todo-mcp/src/index.ts`).
+
 - Project management
 - Epic/Feature/Task CRUD operations
 - Auto-status updates (when children complete, parents update!)
@@ -487,16 +504,18 @@ cd claude-todo
 Potential features for future versions:
 
 - [ ] Drag-and-drop for task reordering
-- [ ] Real-time collaboration (WebSocket)
-- [ ] User authentication & multi-user support
+- [ ] Real-time collaboration (WebSocket) — ✅ shipped (Socket.IO real-time updates)
+- [ ] User authentication & multi-user support — ✅ shipped (JWT auth + roles; `backend/src/routes/auth.js`, `admin.js`)
 - [ ] Due dates and reminders
 - [ ] Tags and labels
-- [ ] Search and filter functionality
-- [ ] Export to Markdown/PDF
-- [ ] Activity log/history
-- [ ] Dark mode
-- [ ] Keyboard shortcuts
+- [ ] Search and filter functionality — ✅ shipped (server-side search & filter on list endpoints)
+- [ ] Export to Markdown/PDF — ✅ shipped (JSON export/import round-trip; `POST /api/:project/import` + export controller)
+- [ ] Activity log/history — ✅ shipped (`backend/src/routes/activity.js` + activity feed)
+- [ ] Dark mode — ✅ shipped (light/dark theme)
+- [ ] Keyboard shortcuts — ✅ shipped
 - [ ] Mobile app (React Native)
+
+> **Update (2026-07):** Several items above have shipped and are marked "✅ shipped" in place. Additional shipped capabilities not originally listed here: Docs/pages (TipTap block editor), persistent trash bin, public sharing links with TTL, comments/@mentions, image upload (GridFS or GCS), and role-based access control (admin/editor/member/viewer). Still open: drag-and-drop reordering, due dates/reminders, tags/labels, and a React Native mobile app.
 
 ## 🤝 Contributing
 

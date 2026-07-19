@@ -18,6 +18,7 @@ There are three pieces:
   a light/dark theme.
 - **Backend** — Node + Express 4 with the native MongoDB driver, Socket.IO for
   real-time, JWT auth, and GridFS for image storage.
+  > **Update (2026-07):** Image storage is now **pluggable — GridFS *or* Google Cloud Storage** (`backend/src/utils/storage.js`; set `GCS_BUCKET` to use GCS, otherwise GridFS). Both backends address images by the same stable, unguessable 128-bit token URL.
 - **MCP server** — a TypeScript Model Context Protocol server so an AI agent can
   drive the same data model programmatically.
 
@@ -58,9 +59,18 @@ pass-through, so the same code runs open in development.
 - **Server-side search & filtering** on every list endpoint.
 - **Docs** — per-project markdown pages with a live sanitized preview and image
   upload (stored in GridFS).
+  > **Update (2026-07):** Docs now use a **TipTap block editor** (Notion-style), not a markdown textarea with preview (`frontend/src/components/Common/RichEditor.jsx`). Legacy markdown pages auto-convert to blocks on open. Image storage is GridFS *or* GCS (see above).
 - **Public sharing** — unguessable read-only links to a whole project tree or a
   single doc page, rendered by a standalone view with no auth.
+  > **Update (2026-07):** Share links now support an **optional expiry (TTL)** via `expiresInDays`; expired links stop resolving (`backend/src/controllers/sharesController.js`).
 - **Persistent trash** — deletes are soft; a Trash view restores or purges.
+  > **Update (2026-07):** Trash is **project-level** — `backend/src/routes/trash.js` + `trashController.js`, scoped per project.
+- **Comments & @mentions** — threaded comments with @mentions.
+  > **Update (2026-07):** ✅ Shipped — `backend/src/routes/comments.js` + `commentsController.js`.
+- **Notifications** — email and Telegram delivery for mentions/events.
+  > **Update (2026-07):** ✅ Shipped — `backend/src/utils/mailer.js` (email) and `backend/src/utils/telegram.js` (Telegram), orchestrated via `utils/notifications.js`.
+- **Roles / RBAC** — `admin` / `editor` / `member` / `viewer`; the **viewer** role is enforced read-only.
+  > **Update (2026-07):** ✅ Shipped — `VALID_ROLES` in `backend/src/controllers/userController.js`; `blockWritesForViewer` (blocks POST/PUT/PATCH/DELETE) and `requireRole('admin')` wired in `backend/src/app.js`.
 - **Undo** — every delete surfaces an Undo toast (restores the delete batch).
 - **Export / import** — round-trip a project as JSON.
 - **Real-time**, **dark mode**, **keyboard shortcuts**, and an **activity feed**.
@@ -100,6 +110,8 @@ GridFS image-read endpoint is public (the id is an unguessable, project-scoped
 ObjectId) while uploads stay authenticated. This is also what makes images work
 inside a public shared page.
 
+> **Update (2026-07):** The read URL is now hardened with an **unguessable 128-bit token** (`crypto.randomBytes(16)`), not the document's ObjectId — see `saveImage`/`getImage` in `backend/src/utils/storage.js` and `uploadsController.js` (`/api/:project/uploads/:token`). Storage is also pluggable (GridFS *or* GCS), addressed by the same token URL; legacy ObjectId URLs still resolve.
+
 ## Testing
 
 Four layers, each catching a different class of bug:
@@ -119,6 +131,8 @@ Current tally: **64 + 19** backend, **54** frontend unit, **19 + 4** E2E — all
 green locally. (CI is configured but currently blocked by a GitHub Actions
 billing limit, not by the code.)
 
+> **Update (2026-07):** Counts have grown. Backend is now **75 unit + 24 integration** (`backend/tests/*.test.js` reports 75 tests; `backend/tests/integration/api.integration.test.js` reports 24). E2E is now **22 main** (`frontend/e2e/crud.spec.js` 21 + `smoke.spec.js` 1) plus a separate **auth E2E** suite (`auth.spec.js`, 5 tests). Frontend unit remains Vitest + RTL.
+
 ## Deployment
 
 Built for a single VM behind nginx: the frontend is static files served
@@ -132,3 +146,9 @@ A few ideas remain on the table: auth-gated image serving, a Notion-style block
 editor to replace the markdown textarea, retention/auto-purge for the trash bin,
 and richer collaboration (comments, mentions). But the core is feature-complete
 and production-shaped — the next real milestone is shipping it.
+
+> **Update (2026-07):** These have all shipped.
+> - **Image serving hardened** — ✅ shipped. Read URLs use unguessable 128-bit tokens (`crypto.randomBytes(16)`) and pluggable GridFS/GCS storage (`backend/src/utils/storage.js`), rather than exposing ObjectIds.
+> - **Notion-style block editor** — ✅ shipped. TipTap replaced the markdown textarea (`frontend/src/components/Common/RichEditor.jsx`); markdown pages auto-convert on open.
+> - **Trash retention / auto-purge** — ✅ shipped. Soft-delete with a Trash view that restores or purges (`backend/src/routes/trash.js` + `trashController.js`).
+> - **Comments & mentions** — ✅ shipped. Threaded comments with @mentions plus email/Telegram notifications (`backend/src/routes/comments.js`, `utils/mailer.js`, `utils/telegram.js`).
