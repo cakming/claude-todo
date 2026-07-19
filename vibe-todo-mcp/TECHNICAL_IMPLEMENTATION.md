@@ -93,7 +93,7 @@ Server → MCP Response → Claude
 ### Language & Runtime
 
 - **TypeScript** 5.3+ (compiled to ES2022)
-- **Node.js** 16+ (ES Modules)
+- **Node.js** 18+ (ES Modules)
 - **MongoDB** 4.4+ (native driver, no ODM)
 
 ### Build System

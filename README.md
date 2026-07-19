@@ -325,7 +325,7 @@ npm install
 npm run build
 ```
 
-2. **Configure Claude Desktop** (`~/.config/claude/claude_desktop_config.json`):
+2. **Configure Claude Desktop** — config file location: macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Linux `~/.config/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -341,7 +341,17 @@ npm run build
 }
 ```
 
-3. **Restart Claude Desktop**
+   Or, with **Claude Code (CLI)**:
+```bash
+claude mcp add vibe-todo \
+  --env MONGODB_URI=mongodb://localhost:27017 \
+  --env DB_NAME=vibe_todo_manager \
+  -- node /absolute/path/to/claude-todo/vibe-todo-mcp/build/index.js
+```
+
+3. **Restart Claude Desktop** (not needed for Claude Code)
+
+   > For the full walkthrough — prerequisites, troubleshooting, and verifying the setup — see [`vibe-todo-mcp/SETUP_GUIDE.md`](./vibe-todo-mcp/SETUP_GUIDE.md).
 
 ### Usage Examples
 

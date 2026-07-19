@@ -4,8 +4,9 @@
 > The steps below install a generic third-party MongoDB MCP
 > (`@modelcontextprotocol/server-mongodb`) that talks to the raw database. The
 > project now ships its **own purpose-built MCP server** in **`vibe-todo-mcp/`**,
-> which exposes **28 domain tools** (projects, epics, features, tasks, tree view,
-> search/filter) instead of raw DB access. For current setup, follow
+> which exposes **42 domain tools** (projects, epics, features, tasks, tree view,
+> search/filter, docs pages, comments/mentions, trash, and share links) instead
+> of raw DB access. For current setup, follow
 > **`vibe-todo-mcp/SETUP_GUIDE.md`** — not this file. The content below is kept as
 > annotated history.
 

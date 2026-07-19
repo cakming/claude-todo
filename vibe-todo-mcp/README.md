@@ -99,7 +99,7 @@ cp .env.example .env
 
 See **[Setup Guide](./SETUP_GUIDE.md)** for complete instructions.
 
-**Quick version:** Add to `~/.config/claude/claude_desktop_config.json`:
+**Quick version (Claude Desktop):** Add to your config file — macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`, Linux: `~/.config/Claude/claude_desktop_config.json`, Windows: `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
 {
@@ -114,6 +114,15 @@ See **[Setup Guide](./SETUP_GUIDE.md)** for complete instructions.
     }
   }
 }
+```
+
+**Using Claude Code (CLI)?** Skip the JSON and run:
+
+```bash
+claude mcp add vibe-todo \
+  --env MONGODB_URI=mongodb://localhost:27017 \
+  --env DB_NAME=vibe_todo_manager \
+  -- node /absolute/path/to/vibe-todo-mcp/build/index.js
 ```
 
 ### 4. Restart Claude Desktop
@@ -163,7 +172,8 @@ DB_NAME=vibe_todo_manager
 
 Edit your Claude Desktop configuration file:
 
-**macOS/Linux**: `~/.config/claude/claude_desktop_config.json`
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 Add the MCP server:

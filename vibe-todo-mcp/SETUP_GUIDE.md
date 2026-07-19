@@ -19,9 +19,9 @@ Before you begin, ensure you have:
 
 ### Required Software
 
-- **Node.js** v16 or higher
+- **Node.js** v18 or higher
   ```bash
-  node --version  # Should show v16.x.x or higher
+  node --version  # Should show v18.x.x or higher
   ```
 
 - **MongoDB** 4.4 or higher (running)
@@ -171,9 +171,14 @@ The MCP server needs to be registered with Claude Desktop so Claude can use the 
 
 ### Step 1: Locate Claude Desktop Config File
 
-**macOS/Linux:**
+**macOS:**
 ```bash
-~/.config/claude/claude_desktop_config.json
+~/Library/Application Support/Claude/claude_desktop_config.json
+```
+
+**Linux:**
+```bash
+~/.config/Claude/claude_desktop_config.json
 ```
 
 **Windows:**
@@ -185,9 +190,13 @@ The MCP server needs to be registered with Claude Desktop so Claude can use the 
 
 **If the file doesn't exist, create it:**
 ```bash
-# macOS/Linux
-mkdir -p ~/.config/claude
-touch ~/.config/claude/claude_desktop_config.json
+# macOS
+mkdir -p ~/Library/Application\ Support/Claude
+touch ~/Library/Application\ Support/Claude/claude_desktop_config.json
+
+# Linux
+mkdir -p ~/.config/Claude
+touch ~/.config/Claude/claude_desktop_config.json
 
 # Windows (PowerShell)
 New-Item -ItemType Directory -Force -Path "$env:APPDATA\Claude"
@@ -307,6 +316,38 @@ pwd
 
 ---
 
+## Alternative: Claude Code (CLI)
+
+If you use **Claude Code** (the terminal CLI / IDE extension) instead of — or in
+addition to — Claude Desktop, you don't edit a JSON file by hand. Register the
+server with the `claude mcp add` command from anywhere:
+
+```bash
+claude mcp add vibe-todo \
+  --env MONGODB_URI=mongodb://localhost:27017 \
+  --env DB_NAME=vibe_todo_manager \
+  -- node /absolute/path/to/claude-todo/vibe-todo-mcp/build/index.js
+```
+
+- Everything **after `--`** is the command Claude Code runs to launch the server
+  (same `node build/index.js` entrypoint as the Desktop config).
+- Use `--scope user` to make the server available in every project, or
+  `--scope project` to share it with your team via a checked-in `.mcp.json`.
+  The default scope is `local` (this project, just you).
+
+**Verify and manage it:**
+```bash
+claude mcp list            # shows vibe-todo and whether it connects
+claude mcp get vibe-todo   # show its config
+claude mcp remove vibe-todo
+```
+
+Inside a Claude Code session, run `/mcp` to see the server's status and its
+available tools. As with Desktop, the MongoDB instance must be running and
+`DB_NAME` must match the backend's database.
+
+---
+
 ## Testing the Setup
 
 ### Verify MCP Server Loaded
@@ -382,6 +423,23 @@ Both tasks marked as done!
 The feature "Basic Tests" has been automatically updated to "done" since all its tasks are complete.
 The epic "Testing" has also been updated to "done" since all its features are complete.
 ```
+
+### Try the Newer Tools
+
+Beyond the epic/feature/task tree, the server exposes tools for the app's other
+surfaces (42 tools total — see `TOOLS_REFERENCE.md`). A few things to try:
+
+```
+"Create a doc page called Onboarding in test_app"        → create_page
+"Comment on that feature: nice work @alice"              → add_comment (parses @alice)
+"Delete the Onboarding page, then show me the trash"     → delete_page + list_trash
+"Restore that from the trash"                            → restore_trash
+"Create a read-only share link for test_app"             → create_share (returns /s/<token>)
+```
+
+> Note: deletes via `delete_page` are **soft** — items go to the trash and can be
+> restored, matching the web app. Read tools (`list_*`, `search_items`, the tree)
+> automatically exclude trashed items.
 
 ---
 
@@ -477,7 +535,7 @@ The epic "Testing" has also been updated to "done" since all its features are co
 1. **Check Node Version:**
    ```bash
    node --version
-   # Must be v16 or higher
+   # Must be v18 or higher
    ```
 
 2. **Reinstall Dependencies:**
@@ -564,7 +622,7 @@ Enable detailed logging:
 tail -f ~/Library/Logs/Claude/mcp-vibe-todo.log
 
 # Linux
-tail -f ~/.config/claude/logs/mcp-vibe-todo.log
+tail -f ~/.config/Claude/logs/mcp-vibe-todo.log
 
 # Windows
 Get-Content "$env:APPDATA\Claude\logs\mcp-vibe-todo.log" -Wait
@@ -576,7 +634,7 @@ Get-Content "$env:APPDATA\Claude\logs\mcp-vibe-todo.log" -Wait
 
 Use this checklist to verify everything is working:
 
-- [ ] Node.js v16+ installed (`node --version`)
+- [ ] Node.js v18+ installed (`node --version`)
 - [ ] MongoDB running (`mongosh` connects)
 - [ ] Dependencies installed (`npm install` successful)
 - [ ] Build successful (`npm run build` no errors)
@@ -626,10 +684,13 @@ rm -rf build
 npm run build
 ```
 
-**Config file location:**
-- macOS: `~/.config/claude/claude_desktop_config.json`
+**Config file location (Claude Desktop):**
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-- Linux: `~/.config/claude/claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
+
+**Claude Code (CLI):** register with `claude mcp add` instead — see
+[Alternative: Claude Code (CLI)](#alternative-claude-code-cli).
 
 ---
 

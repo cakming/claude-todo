@@ -1077,6 +1077,7 @@ vibe_todo_manager/
 ### Prerequisites
 
 - **Node.js** v16 or higher
+  > **Update (2026-07):** Use **Node.js v18+** — deployment targets Node 18 and the MCP server declares `@types/node ^20`.
 - **MongoDB** 4.4 or higher (local or Atlas)
 - **npm** or **yarn**
 - **Git**
