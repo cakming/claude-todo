@@ -50,10 +50,22 @@ PORT=3001
 NODE_ENV=development
 
 # CORS
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000   # ⚠️ Update (2026-07): use http://localhost:5173 — see note below
 
 # Authentication Configuration
 AUTH_ENABLED=true  # Set to 'true' to enable auth, 'false' or omit to disable
+```
+
+> **⚠️ Update (2026-07): Frontend port is 5173, not 3000.** The Vite dev server
+> runs on **`http://localhost:5173`** — there is no `server.port` override in
+> `frontend/vite.config.js`, so Vite's default (5173) applies. Everywhere this
+> guide says `http://localhost:3000` (including `CORS_ORIGIN`), read it as
+> **`http://localhost:5173`**. The original `3000` references are preserved below
+> as annotated history and are individually corrected on the most important
+> instruction lines.
+
+```env
+# (config block continues)
 
 # JWT Configuration (required if AUTH_ENABLED=true)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -86,6 +98,7 @@ npm run dev
 ```
 
 Visit `http://localhost:3000` - You should see the main application directly, no login required.
+> **Update (2026-07):** Use `http://localhost:5173` (Vite default; port 3000 is stale).
 
 ### 2. Test with Authentication Enabled
 
@@ -97,6 +110,7 @@ MONGODB_URI=mongodb://localhost:27017
 DB_NAME=vibe_todo_manager
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
+# ⚠️ Update (2026-07): frontend runs on 5173 → set CORS_ORIGIN=http://localhost:5173
 AUTH_ENABLED=true
 JWT_SECRET=my-super-secret-jwt-key-for-testing-only-change-in-production
 JWT_EXPIRES_IN=7d
@@ -117,6 +131,7 @@ npm run dev
 ```
 
 Visit `http://localhost:3000` - You should see the login screen.
+> **Update (2026-07):** Use `http://localhost:5173` (Vite default; port 3000 is stale).
 
 ### 3. Test Registration Flow
 
@@ -284,6 +299,77 @@ Authorization: Bearer <token>
   }
 }
 ```
+
+> **Update (2026-07):** ✅ Shipped — the sections above were the only auth
+> endpoints originally documented, but `backend/src/routes/auth.js` also exposes
+> the following. Brief reference added below.
+
+#### 5. Change Password
+
+**POST** `/api/auth/change-password` — *requires authentication*
+
+Change the current user's password. Handler: `changePassword` in
+`backend/src/controllers/authController.js`.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "currentPassword": "oldpassword123",
+  "newPassword": "newpassword456"
+}
+```
+
+#### 6. Forgot Password
+
+**POST** `/api/auth/forgot-password` — *public*
+
+Emails a password-reset link (via nodemailer). Handler: `forgotPassword`.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+#### 7. Reset Password
+
+**POST** `/api/auth/reset-password` — *public*
+
+Resets the password using the emailed token. Handler: `resetPassword`.
+
+**Request Body:**
+```json
+{
+  "token": "<reset-token-from-email>",
+  "newPassword": "newpassword456"
+}
+```
+
+#### 8. Telegram Notification Linking
+
+These endpoints link a user's Telegram account for mention notifications
+(handlers `telegramConnect` / `telegramStatus` / `telegramDisconnect`). All
+require authentication (`Authorization: Bearer <token>`):
+
+- **POST** `/api/auth/telegram/connect` — returns a Telegram deep link to start linking
+- **GET** `/api/auth/telegram/status` — reports whether Telegram is linked
+- **POST** `/api/auth/telegram/disconnect` — unlinks Telegram
+
+### User Roles
+
+> **Update (2026-07):** ✅ Shipped — role-based access control exists but was not
+> previously documented here. Users have a `role` field
+> (`VALID_ROLES = ['admin', 'editor', 'member', 'viewer']` in
+> `backend/src/controllers/userController.js`). The first registered user becomes
+> `admin`; everyone else defaults to `member`. Enforcement lives in
+> `backend/src/middleware/authMiddleware.js`: `requireRole(...)` guards
+> admin-only routes (e.g. `/api/admin` is mounted behind
+> `authenticate, requireRole('admin')` in `app.js`), and `blockWritesForViewer`
+> makes `viewer` accounts read-only. Admins can change a user's role via the
+> admin API.
 
 ### Protected Endpoints
 
@@ -462,6 +548,7 @@ console.log('Token:', getToken());
 
 **Solution:**
 1. Navigate to `http://localhost:3000`
+   > **Update (2026-07):** Use `http://localhost:5173` (Vite default; port 3000 is stale).
 2. Click "Register here"
 3. Create an account
 4. You should be logged in automatically
@@ -514,7 +601,7 @@ cd frontend
 npm run dev
 
 # 4. Test in browser:
-# - Visit http://localhost:3000
+# - Visit http://localhost:3000   # ⚠️ Update (2026-07): use http://localhost:5173 (Vite default)
 # - Register a new account
 # - Verify you can create projects
 # - Logout
@@ -565,9 +652,9 @@ NODE_ENV=production
 - [ ] Set appropriate JWT_EXPIRES_IN
 - [ ] Never commit .env file
 - [ ] Use environment-specific secrets
-- [ ] Implement rate limiting on auth endpoints
+- [x] Implement rate limiting on auth endpoints — done (`authLimiter` via `express-rate-limit` in `backend/src/app.js`). ✅ Update (2026-07)
 - [ ] Add account lockout after failed attempts (optional)
-- [ ] Implement password reset flow (optional)
+- [x] Implement password reset flow (optional) — done (forgot-password/reset-password endpoints + email). ✅ Update (2026-07)
 
 ---
 

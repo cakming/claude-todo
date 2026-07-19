@@ -37,9 +37,13 @@ Living backlog for the Vibe Coding Todo Manager. Shipped work is summarized in
 
 ## Deferred
 
-- [ ] **GCS image storage** — move uploads from GridFS to a Google Cloud Storage
+- [x] **GCS image storage** — move uploads from GridFS to a Google Cloud Storage
   bucket with signed URLs (needs a bucket + service-account credentials). Keeps
   MongoDB lean at image scale.
+  > **Update (2026-07):** ✅ Shipped (commit `d6c214c`) — pluggable storage in
+  > `backend/src/utils/storage.js`: when `GCS_BUCKET` is set, images live in a
+  > Google Cloud Storage bucket; otherwise it falls back to GridFS. Same stable,
+  > unguessable token addressing for both. No longer "deferred".
 
 ## Not planned (notes only)
 
