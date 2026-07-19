@@ -43,6 +43,8 @@
 - ✅ **Authentication Ready** - Optional auth system (disabled by default)
 - ✅ **Claude AI Integration** - Custom MCP server with 30+ tools
 
+> **Update (2026-07):** Correction — the MCP server exposes **28 tools** (verified in `vibe-todo-mcp/src/index.ts` `ListTools` handler), not "30+".
+
 ### Tech Stack
 
 - **Frontend:** React 19 + Vite + Tailwind CSS 3
@@ -134,6 +136,8 @@ Solve the problem of flat todo lists that don't handle the complexity of softwar
 
 #### TypeScript MCP Server
 - ✅ 30+ tools for Claude interaction
+
+> **Update (2026-07):** Correction — the actual tool count is **28** (see `vibe-todo-mcp/src/index.ts`).
 - ✅ Project tools (list, create, delete)
 - ✅ Epic tools (full CRUD + cascade delete)
 - ✅ Feature tools (full CRUD + cascade delete)
@@ -207,6 +211,8 @@ Claude: *uses mark-task-done tool, auto-updates parent feature*
 - ✅ `vibe-todo-mcp/README.md` - MCP overview
 - ✅ `vibe-todo-mcp/SETUP_GUIDE.md` - Installation & configuration
 - ✅ `vibe-todo-mcp/TOOLS_REFERENCE.md` - All 30+ tools documented
+
+> **Update (2026-07):** Correction — **28 tools** total (verified against `vibe-todo-mcp/src/index.ts`).
 - ✅ `vibe-todo-mcp/USAGE_EXAMPLES.md` - Real-world scenarios
 - ✅ `vibe-todo-mcp/KEY_FEATURES.md` - Auto-status algorithm explained
 - ✅ `vibe-todo-mcp/TECHNICAL_IMPLEMENTATION.md` - Architecture deep dive
@@ -253,6 +259,8 @@ building (`treeController.test.js`), the `AUTH_ENABLED` auth-guard middleware
 (`authMiddleware.test.js`), and JWT generate/verify/decode (`jwt.test.js`).
 Every backend controller plus the auth middleware now has unit coverage
 (**48 tests**, `cd backend && npm test`).
+
+> **Update (2026-07):** Correction — the suite has grown to **75 test cases across 12 files** in `backend/tests/*.test.js` (verified by counting `test(`/`it(` calls). The list above also omits several test files now present: `cascadeDelete.test.js`, `notifications.test.js`, `storage.test.js`, `adminUsers.test.js`, `authUtils.test.js`, and `authMiddleware.test.js`. Per-file counts: authController 17, authMiddleware 14, taskController 7, projectController 6, statusController 6, adminUsers 4, cascadeDelete 4, notifications 4, storage 4, authUtils 3, jwt 3, treeController 3.
 
 **Frontend:** Vitest + React Testing Library cover the API/auth service layers,
 the `AppContext`/`AuthContext` providers, the `helpers` utilities, and UI
@@ -427,10 +435,12 @@ module.exports = {
 **Effort:** Medium
 
 **What's needed:**
-- [ ] Admin panel for user management
-- [ ] Roles and permissions (admin, user, viewer)
+- [x] Admin panel for user management — done: admin API in `backend/src/routes/admin.js` (list users, update role, delete user, reset password) via `userController.js`
+- [x] Roles and permissions (admin, user, viewer) — done: `requireRole(...)` and `blockWritesForViewer` middleware in `backend/src/middleware/authMiddleware.js`; viewer accounts are read-only, admin routes gated
 - [ ] User profile page (change password, etc.)
 - [ ] User avatar/photo upload
+
+> **Update (2026-07):** ✅ Shipped — role-based access control is implemented. `requireRole` restricts routes to given roles and `blockWritesForViewer` makes `viewer` accounts read-only (both in `backend/src/middleware/authMiddleware.js`). Admin user-management endpoints live in `backend/src/routes/admin.js` (`GET /users`, `PATCH /users/:id/role`, `DELETE /users/:id`, `POST /users/:id/reset-password`).
 
 #### 10. **Comments & Mentions**
 **Status:** Not implemented  
@@ -438,10 +448,12 @@ module.exports = {
 **Effort:** High
 
 **What's needed:**
-- [ ] Comment threads on tasks
-- [ ] @mentions for users
-- [ ] Notifications for mentions
+- [x] Comment threads on tasks — done: `backend/src/controllers/commentsController.js` + `backend/src/routes/comments.js`
+- [x] @mentions for users — done: `@mention` parsing in `commentsController.js` (stored as `comment.mentions`)
+- [x] Notifications for mentions — done: `notifyMentions()` in `commentsController.js` fires email + Telegram alerts via `backend/src/utils/notifications.js` / `telegram.js`
 - [ ] Markdown support in comments
+
+> **Update (2026-07):** ✅ Shipped — comments are fully built. Threads are handled by `commentsController.js`/`routes/comments.js`; `@username` mentions are parsed and stored on each comment; and mentioned users receive best-effort email + Telegram notifications (`notifyMentions()` → `notifyUser()` in `utils/notifications.js`, with Telegram linking via the endpoints in `routes/auth.js` and `utils/telegram.js`). Markdown rendering in comments remains the only open sub-item.
 
 #### 11. **Attachments**
 **Status:** Not implemented  
@@ -1389,6 +1401,8 @@ export async function deleteEpic(project, epicId) {
 
 **Warning:** This is PERMANENT! No undo.
 
+> **Update (2026-07):** No longer accurate — deletes are now **soft deletes**. Items are flagged with `deleted_at` / `deleted_batch` and moved to a trash bin (`backend/src/controllers/trashController.js` + `routes/trash.js`), so a cascade delete can be restored rather than being permanently lost.
+
 ### 3. Progress Calculation
 
 **What it does:** Automatically calculates completion percentage
@@ -1632,6 +1646,8 @@ export DB_NAME=vibe_todo_manager
 **Impact:** Medium  
 **Workaround:** Be careful when deleting!  
 **Fix:** Implement soft deletes or undo buffer
+
+> **Update (2026-07):** ✅ Shipped — soft deletes are implemented. Deleted items are marked with `deleted_at` / `deleted_batch` and land in a restorable trash bin (`backend/src/controllers/trashController.js`, `backend/src/routes/trash.js`). Deletes are recoverable, not permanent.
 
 ### 3. **No Drag & Drop on Kanban**
 **Issue:** Can't drag tasks between columns  
@@ -2251,7 +2267,7 @@ Before deploying to production:
 - [ ] Set up MongoDB backups
 - [ ] Configure SSL/HTTPS
 - [ ] Set up monitoring (PM2, DataDog, etc.)
-- [ ] Set up error tracking (Sentry)
+- [x] Set up error tracking (Sentry) — done: `frontend/src/monitoring.js` (initialized in `frontend/src/main.jsx`); DSN env var documented in `DEPLOYMENT_GCP.md`
 - [ ] Configure logging
 - [ ] Test backup restore procedure
 - [ ] Set up CI/CD pipeline
@@ -2311,6 +2327,8 @@ const allDone = children.every(child => child.status === 'done');
 
 **No soft deletes, no undo!**
 
+> **Update (2026-07):** No longer valid — soft deletes + a trash bin are now implemented (see below). Deletes are recoverable.
+
 When you delete:
 - Epic → Deletes all features + all tasks
 - Feature → Deletes all tasks
@@ -2319,6 +2337,8 @@ When you delete:
 **Workaround:** Add confirmation dialog (already exists in frontend)
 
 **Future:** Implement soft deletes with `deleted: true` flag
+
+> **Update (2026-07):** ✅ Shipped — this is done. Deletes now set `deleted_at` / `deleted_batch` and move items into a restorable trash bin (`backend/src/controllers/trashController.js`, `backend/src/routes/trash.js`) rather than removing them permanently.
 
 ### 4. **Auth Token Storage**
 
@@ -2480,6 +2500,8 @@ db.users.updateOne(
 - Delete users (no endpoint)
 - Change roles (no roles exist)
 
+> **Update (2026-07):** No longer valid — admin endpoints now exist for all three: list users (`GET /admin/users`), delete users (`DELETE /admin/users/:id`), and change roles (`PATCH /admin/users/:id/role`), plus password reset (`POST /admin/users/:id/reset-password`). Roles (`admin`/`user`/`viewer`) are enforced via `requireRole` / `blockWritesForViewer`. See `backend/src/routes/admin.js`.
+
 **Workaround:** Use MongoDB Compass or CLI
 
 ### 13. **Frontend Build Output**
@@ -2558,6 +2580,8 @@ npm run build
 8. **vibe-todo-mcp/TOOLS_REFERENCE.md** - All 30+ tools
    - Purpose: Complete tool documentation
    - Audience: Claude users, MCP developers
+
+   > **Update (2026-07):** Correction — **28 tools** total (verified in `vibe-todo-mcp/src/index.ts`).
 
 9. **vibe-todo-mcp/USAGE_EXAMPLES.md** - Real-world examples
    - Purpose: How to use MCP in practice
