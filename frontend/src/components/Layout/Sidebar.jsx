@@ -9,7 +9,8 @@ export default function Sidebar({ currentView, setCurrentView }) {
     { id: 'tasks', icon: '✅', label: 'Tasks' },
     { id: 'tree', icon: '🌲', label: 'Tree View' },
     { id: 'docs', icon: '📄', label: 'Docs' },
-    { id: 'activity', icon: '📜', label: 'Activity' }
+    { id: 'activity', icon: '📜', label: 'Activity' },
+    { id: 'trash', icon: '🗑', label: 'Trash' }
   ];
 
   // Admins get a Users management view.

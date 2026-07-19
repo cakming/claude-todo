@@ -9,7 +9,7 @@ import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress, filterByQuery } from '../utils/helpers';
 import { undoDeleteToast } from '../utils/undo';
 
-export default function FeatureView() {
+export default function FeatureView({ drillFilter, onDrill }) {
   const { currentProject, showToast, refreshTick } = useApp();
   const [features, setFeatures] = useState([]);
   const [epics, setEpics] = useState([]);
@@ -19,6 +19,11 @@ export default function FeatureView() {
   const [selectedEpicFilter, setSelectedEpicFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const loadIdRef = useRef(0);
+
+  // Preselect the epic filter when drilled in from an Epic card.
+  useEffect(() => {
+    if (drillFilter?.epicId) setSelectedEpicFilter(drillFilter.epicId);
+  }, [drillFilter]);
 
   useEffect(() => {
     if (currentProject) {
@@ -113,7 +118,7 @@ export default function FeatureView() {
     try {
       const res = await featuresApi.delete(currentProject, feature._id);
       showToast('Feature deleted successfully', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');
@@ -191,7 +196,7 @@ export default function FeatureView() {
                 epicName={feature.epicName}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onExpand={() => {}}
+                onExpand={onDrill}
               />
             ))}
           </div>

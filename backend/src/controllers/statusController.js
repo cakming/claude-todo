@@ -19,10 +19,11 @@ export async function updateParentStatus(collection, parentId, parentType) {
       return; // Tasks don't have children
     }
 
-    // Get all children
+    // Get all children (excluding trashed ones)
     const children = await collection.find({
       type: childType,
-      [childKey]: parentId
+      [childKey]: parentId,
+      deleted_at: null
     }).toArray();
 
     // If no children, don't auto-update status
@@ -94,7 +95,8 @@ export async function calculateProgress(collection, itemId, itemType) {
 
   const children = await collection.find({
     type: childType,
-    [childKey]: itemId
+    [childKey]: itemId,
+    deleted_at: null
   }).toArray();
 
   const total = children.length;

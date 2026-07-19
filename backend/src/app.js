@@ -6,11 +6,12 @@ import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
 import { Server as SocketIOServer } from 'socket.io';
 import logger from './utils/logger.js';
+import { startTelegramPolling } from './utils/telegram.js';
 import { connectDB, closeDB, getDB, createUserIndexes } from './config/mongodb.js';
 import { setIO } from './realtime.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { validateProject } from './middleware/projectValidator.js';
-import { authenticate, isAuthEnabled, requireRole } from './middleware/authMiddleware.js';
+import { authenticate, isAuthEnabled, requireRole, blockWritesForViewer } from './middleware/authMiddleware.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -23,8 +24,11 @@ import activityRoutes from './routes/activity.js';
 import adminRoutes from './routes/admin.js';
 import pageRoutes from './routes/pages.js';
 import uploadRoutes from './routes/uploads.js';
+import shareRoutes from './routes/shares.js';
+import trashRoutes from './routes/trash.js';
+import commentRoutes from './routes/comments.js';
 import { exportProject, importProject } from './controllers/exchangeController.js';
-import { restoreItems } from './controllers/restoreController.js';
+import { getPublicShare } from './controllers/sharesController.js';
 
 // Load environment variables
 dotenv.config();
@@ -75,28 +79,32 @@ app.use('/api/auth/forgot-password', authLimiter);
 // Authentication routes (always available)
 app.use('/api/auth', authRoutes);
 
+// Public, unauthenticated read of a shared project/page by token.
+app.get('/api/public/:token', getPublicShare);
+
 // Admin routes (require the 'admin' role when auth is enabled)
 app.use('/api/admin', authenticate, requireRole('admin'), adminRoutes);
 
-// API Routes (protected if AUTH_ENABLED=true)
-app.use('/api/projects', authenticate, projectRoutes);
+// API Routes (protected if AUTH_ENABLED=true). blockWritesForViewer makes
+// 'viewer'-role accounts read-only (it only blocks POST/PUT/PATCH/DELETE).
+app.use('/api/projects', authenticate, blockWritesForViewer, projectRoutes);
 
 // Project-scoped routes (require project validation + auth if enabled)
-app.use('/api/:project/epics', authenticate, validateProject, epicRoutes);
-app.use('/api/:project/features', authenticate, validateProject, featureRoutes);
-app.use('/api/:project/tasks', authenticate, validateProject, taskRoutes);
+app.use('/api/:project/epics', authenticate, blockWritesForViewer, validateProject, epicRoutes);
+app.use('/api/:project/features', authenticate, blockWritesForViewer, validateProject, featureRoutes);
+app.use('/api/:project/tasks', authenticate, blockWritesForViewer, validateProject, taskRoutes);
 app.use('/api/:project/tree', authenticate, validateProject, treeRoutes);
 app.use('/api/:project/activity', authenticate, validateProject, activityRoutes);
-app.use('/api/:project/pages', authenticate, validateProject, pageRoutes);
+app.use('/api/:project/pages', authenticate, blockWritesForViewer, validateProject, pageRoutes);
+app.use('/api/:project/shares', authenticate, blockWritesForViewer, validateProject, shareRoutes);
+app.use('/api/:project/trash', authenticate, blockWritesForViewer, validateProject, trashRoutes);
+app.use('/api/:project/comments', authenticate, blockWritesForViewer, validateProject, commentRoutes);
 // Uploads apply auth per-route (POST authed, GET public) so image tags load.
 app.use('/api/:project/uploads', validateProject, uploadRoutes);
 
-// Project export / import (JSON).
+// Project export / import (JSON). Import is a write -> viewers blocked.
 app.get('/api/:project/export', authenticate, validateProject, exportProject);
-app.post('/api/:project/import', authenticate, validateProject, importProject);
-
-// Restore previously-deleted items (undo of a delete).
-app.post('/api/:project/restore', authenticate, validateProject, restoreItems);
+app.post('/api/:project/import', authenticate, blockWritesForViewer, validateProject, importProject);
 
 // Test-only endpoint to reset the database between E2E tests. Gated behind
 // E2E_TEST and never enabled in production (only backend/scripts/e2e-server.mjs
@@ -131,6 +139,10 @@ async function startServer() {
       cors: { origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }
     });
     setIO(io);
+
+    // Start the Telegram bot poller for one-click account linking (no-op unless
+    // TELEGRAM_BOT_TOKEN is set). Runs in the background.
+    startTelegramPolling().catch((e) => logger.warn({ err: e }, 'telegram poller failed to start'));
 
     // Start listening
     server.listen(PORT, () => {

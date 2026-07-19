@@ -62,6 +62,29 @@ export const projectsApi = {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
+  },
+
+  trash: async () => {
+    const response = await fetch(`${API_BASE_URL}/projects/trash`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  restore: async (name) => {
+    const response = await fetch(`${API_BASE_URL}/projects/${name}/restore`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  purge: async (name) => {
+    const response = await fetch(`${API_BASE_URL}/projects/${name}/purge`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
   }
 };
 
@@ -313,13 +336,91 @@ export const uploadsApi = {
   }
 };
 
-// Restore (undo delete) API
-export const restoreApi = {
-  restore: async (project, items) => {
-    const response = await fetch(`${API_BASE_URL}/${project}/restore`, {
+// Trash (soft-delete) API
+export const trashApi = {
+  list: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  restore: async (project, batch) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash/restore`, {
       method: 'POST',
       headers: getDefaultHeaders(),
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ batch })
+    });
+    return handleResponse(response);
+  },
+
+  purge: async (project, batch) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/trash/${batch}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
+// Share links API
+export const sharesApi = {
+  list: async (project) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (project, data = {}) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  revoke: async (project, token) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/shares/${token}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  }
+};
+
+// Public (unauthenticated) read of a shared resource.
+export const publicApi = {
+  get: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/public/${token}`);
+    return handleResponse(response);
+  }
+};
+
+// Comments API
+export const commentsApi = {
+  list: async (project, targetType, targetId) => {
+    const qs = `?target_type=${encodeURIComponent(targetType)}&target_id=${encodeURIComponent(targetId)}`;
+    const response = await fetch(`${API_BASE_URL}/${project}/comments${qs}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  create: async (project, data) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/comments`, {
+      method: 'POST',
+      headers: getDefaultHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  delete: async (project, id) => {
+    const response = await fetch(`${API_BASE_URL}/${project}/comments/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
     return handleResponse(response);
   }

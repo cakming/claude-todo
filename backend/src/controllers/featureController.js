@@ -14,7 +14,7 @@ export async function getFeaturesByEpic(req, res) {
     const collection = getProjectCollection(project);
 
     const query = applyListFilters(
-      { type: DOC_TYPES.FEATURE, epic_id: new ObjectId(epicId) },
+      { type: DOC_TYPES.FEATURE, epic_id: new ObjectId(epicId), deleted_at: null },
       req.query
     );
     const features = await collection.find(query).toArray();
@@ -42,7 +42,8 @@ export async function getFeatureById(req, res) {
 
     const feature = await collection.findOne({
       _id: new ObjectId(id),
-      type: DOC_TYPES.FEATURE
+      type: DOC_TYPES.FEATURE,
+      deleted_at: null
     });
 
     if (!feature) {
@@ -73,10 +74,11 @@ export async function createFeature(req, res) {
     const { project, epicId } = req.params;
     const collection = getProjectCollection(project);
 
-    // Verify epic exists
+    // Verify epic exists (and isn't trashed)
     const epic = await collection.findOne({
       _id: new ObjectId(epicId),
-      type: DOC_TYPES.EPIC
+      type: DOC_TYPES.EPIC,
+      deleted_at: null
     });
 
     if (!epic) {
@@ -179,10 +181,11 @@ export async function deleteFeature(req, res) {
 
     const featureId = new ObjectId(id);
 
-    // Get the feature to know its epic
+    // Get the feature to know its epic (must be live)
     const feature = await collection.findOne({
       _id: featureId,
-      type: DOC_TYPES.FEATURE
+      type: DOC_TYPES.FEATURE,
+      deleted_at: null
     });
 
     if (!feature) {
@@ -192,23 +195,11 @@ export async function deleteFeature(req, res) {
       });
     }
 
-    // Capture child tasks before deleting so the client can undo the cascade.
-    const tasks = await collection.find({
-      type: DOC_TYPES.TASK,
-      feature_id: featureId
-    }).toArray();
-
-    // Delete all tasks belonging to this feature
-    await collection.deleteMany({
-      type: DOC_TYPES.TASK,
-      feature_id: featureId
-    });
-
-    // Delete the feature
-    await collection.deleteOne({
-      _id: featureId,
-      type: DOC_TYPES.FEATURE
-    });
+    // Soft-delete the feature and its tasks under one batch.
+    const batch = new ObjectId();
+    const trash = { $set: { deleted_at: new Date(), deleted_batch: batch } };
+    await collection.updateMany({ type: DOC_TYPES.TASK, feature_id: featureId, deleted_at: null }, trash);
+    await collection.updateOne({ _id: featureId, type: DOC_TYPES.FEATURE }, trash);
 
     // Update parent epic status
     await updateParentStatus(collection, feature.epic_id, DOC_TYPES.EPIC);
@@ -218,7 +209,7 @@ export async function deleteFeature(req, res) {
     res.json({
       success: true,
       message: 'Feature and all related tasks deleted successfully',
-      removed: [feature, ...tasks]
+      batch
     });
   } catch (error) {
     console.error('Error deleting feature:', error);

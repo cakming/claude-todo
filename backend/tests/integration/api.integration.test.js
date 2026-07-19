@@ -62,6 +62,42 @@ test('POST /api/projects sanitizes the name and it then appears in the list', as
   assert.ok(list.body.data.includes('my_test_app'));
 });
 
+test('projects can be trashed, restored, and purged', async () => {
+  const project = await makeProject('lifecycle');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'Keeper' });
+
+  // Soft-delete hides it from the list but keeps the data.
+  const del = await request(app).delete(`/api/projects/${project}`);
+  assert.equal(del.status, 200);
+  let list = await request(app).get('/api/projects');
+  assert.ok(!list.body.data.includes(project), 'trashed project is hidden');
+
+  const trash = await request(app).get('/api/projects/trash');
+  assert.equal(trash.body.data.length, 1);
+  assert.equal(trash.body.data[0].name, project);
+
+  // Re-creating a trashed name is blocked with a hint.
+  const dup = await request(app).post('/api/projects').send({ name: project });
+  assert.equal(dup.status, 409);
+
+  // Restore brings it back with its data intact.
+  const restore = await request(app).post(`/api/projects/${project}/restore`);
+  assert.equal(restore.status, 200);
+  list = await request(app).get('/api/projects');
+  assert.ok(list.body.data.includes(project), 'restored project is listed again');
+  const epics = await request(app).get(`/api/${project}/epics`);
+  assert.equal(epics.body.data[0].title, 'Keeper', 'data survived the round-trip');
+
+  // Purge permanently drops it.
+  await request(app).delete(`/api/projects/${project}`);
+  const purge = await request(app).delete(`/api/projects/${project}/purge`);
+  assert.equal(purge.status, 200);
+  const afterTrash = await request(app).get('/api/projects/trash');
+  assert.equal(afterTrash.body.data.length, 0);
+  const afterList = await request(app).get('/api/projects');
+  assert.ok(!afterList.body.data.includes(project));
+});
+
 test('requests against a non-existent project return 404', async () => {
   const res = await request(app).get('/api/does_not_exist/epics');
   assert.equal(res.status, 404);
@@ -216,25 +252,30 @@ test('tasks accept and return a due_date', async () => {
   assert.equal(task.body.data.due_date, '2026-12-31');
 });
 
-test('export then import copies a project into another', async () => {
+test('export then import copies a project into another (incl. doc pages)', async () => {
   const src = await makeProject('src');
   const epic = await request(app).post(`/api/${src}/epics`).send({ title: 'Exported Epic' });
   await request(app)
     .post(`/api/${src}/features/by-epic/${epic.body.data._id}`)
     .send({ title: 'Exported Feature' });
+  await request(app).post(`/api/${src}/pages`).send({ title: 'Exported Doc', body: '# Notes' });
 
   const exported = await request(app).get(`/api/${src}/export`);
   assert.equal(exported.status, 200);
-  assert.equal(exported.body.data.length, 2);
+  assert.equal(exported.body.data.length, 3, 'epic + feature + page exported');
 
   const dst = await makeProject('dst');
   const imported = await request(app).post(`/api/${dst}/import`).send({ data: exported.body.data });
   assert.equal(imported.status, 200);
-  assert.equal(imported.body.imported, 2);
+  assert.equal(imported.body.imported, 3);
 
   const epicsInDst = await request(app).get(`/api/${dst}/epics`);
   assert.equal(epicsInDst.body.data.length, 1);
   assert.equal(epicsInDst.body.data[0].title, 'Exported Epic');
+
+  const pagesInDst = await request(app).get(`/api/${dst}/pages`);
+  assert.equal(pagesInDst.body.data.length, 1, 'the doc page came across too');
+  assert.equal(pagesInDst.body.data[0].title, 'Exported Doc');
 });
 
 test('bulk status and bulk delete update tasks and their parent feature', async () => {
@@ -266,7 +307,7 @@ test('bulk status and bulk delete update tasks and their parent feature', async 
   assert.equal(bad.status, 400);
 });
 
-test('deleting an epic returns the removed docs and they can be restored (undo)', async () => {
+test('deleting an epic trashes its subtree; it can be restored or purged', async () => {
   const project = await makeProject('undo');
   const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
   const epicId = epic.body.data._id;
@@ -279,28 +320,75 @@ test('deleting an epic returns the removed docs and they can be restored (undo)'
 
   const del = await request(app).delete(`/api/${project}/epics/${epicId}`);
   assert.equal(del.status, 200);
-  assert.equal(del.body.removed.length, 3, 'epic + feature + task returned for undo');
+  assert.ok(del.body.batch, 'delete returns a batch id');
 
-  // Project is empty after delete.
+  // Project reads are empty after delete, but the subtree sits in trash.
   let tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 0);
 
-  // Restore re-inserts everything with original ids and relationships intact.
-  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
-  assert.equal(restore.status, 200);
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 1, 'one restorable batch');
+  assert.equal(trash.body.data[0].count, 3, 'epic + feature + task grouped');
+  assert.equal(trash.body.data[0].type, 'epic', 'represented by the epic');
+  assert.equal(trash.body.data[0].batch, del.body.batch);
+
+  // Restore brings the whole subtree back with ids/relationships intact.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
   assert.equal(restore.body.restored, 3);
 
   tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 1, 'epic is back');
   assert.equal(tree.body.data[0]._id, epicId, 'same id preserved');
-  assert.equal(tree.body.data[0].features[0].title, 'F', 'feature restored under epic');
-  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T', 'task restored under feature');
+  assert.equal(tree.body.data[0].features[0].title, 'F');
+  assert.equal(tree.body.data[0].features[0].tasks[0].title, 'T');
 
-  // Restore is idempotent and validates input.
-  const again = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
-  assert.equal(again.body.restored, 3, 'double-undo is harmless');
-  const bad = await request(app).post(`/api/${project}/restore`).send({ items: [] });
-  assert.equal(bad.status, 400);
+  // Trash is empty again; restoring a missing batch 404s; bad input 400s.
+  const emptyTrash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(emptyTrash.body.data.length, 0);
+  const badRestore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
+  assert.equal(badRestore.status, 404, 'nothing left to restore');
+  const noBatch = await request(app).post(`/api/${project}/trash/restore`).send({});
+  assert.equal(noBatch.status, 400);
+});
+
+test('trash auto-purges items older than the retention window', async () => {
+  const project = await makeProject('retention');
+  const keep = await request(app).post(`/api/${project}/epics`).send({ title: 'Recent' });
+  const old = await request(app).post(`/api/${project}/epics`).send({ title: 'Ancient' });
+  const keepDel = await request(app).delete(`/api/${project}/epics/${keep.body.data._id}`);
+  const oldDel = await request(app).delete(`/api/${project}/epics/${old.body.data._id}`);
+
+  // Age one batch well past the default 30-day retention.
+  const coll = getDB().collection(`project_${project}`);
+  await coll.updateMany(
+    { deleted_batch: new (await import('mongodb')).ObjectId(oldDel.body.batch) },
+    { $set: { deleted_at: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) } }
+  );
+
+  // Listing the trash sweeps the aged batch and keeps the recent one.
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 1, 'only the recent batch remains');
+  assert.equal(trash.body.data[0].batch, keepDel.body.batch);
+  assert.equal(trash.body.retentionDays, 30);
+
+  // The purged batch can no longer be restored.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: oldDel.body.batch });
+  assert.equal(restore.status, 404);
+});
+
+test('purging trash permanently removes the batch', async () => {
+  const project = await makeProject('purge');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const del = await request(app).delete(`/api/${project}/epics/${epic.body.data._id}`);
+
+  const purge = await request(app).delete(`/api/${project}/trash/${del.body.batch}`);
+  assert.equal(purge.body.purged, 1);
+
+  const trash = await request(app).get(`/api/${project}/trash`);
+  assert.equal(trash.body.data.length, 0, 'batch is gone for good');
+  // A purged batch can no longer be restored.
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
+  assert.equal(restore.status, 404);
 });
 
 test('doc pages: full CRUD plus undo of a delete', async () => {
@@ -331,13 +419,13 @@ test('doc pages: full CRUD plus undo of a delete', async () => {
   const found = await request(app).get(`/api/${project}/pages?search=design`);
   assert.equal(found.body.data.length, 1);
 
-  // Delete returns the removed doc; restore brings it back.
+  // Delete trashes the page; restore-from-trash brings it back.
   const del = await request(app).delete(`/api/${project}/pages/${pageId}`);
-  assert.equal(del.body.removed.length, 1);
+  assert.ok(del.body.batch);
   const gone = await request(app).get(`/api/${project}/pages`);
   assert.equal(gone.body.data.length, 0);
 
-  const restore = await request(app).post(`/api/${project}/restore`).send({ items: del.body.removed });
+  const restore = await request(app).post(`/api/${project}/trash/restore`).send({ batch: del.body.batch });
   assert.equal(restore.body.restored, 1);
   const back = await request(app).get(`/api/${project}/pages`);
   assert.equal(back.body.data.length, 1);
@@ -357,6 +445,10 @@ test('image upload stores to GridFS and serves it back; rejects non-images', asy
     .attach('file', png, { filename: 'dot.png', contentType: 'image/png' });
   assert.equal(up.status, 201);
   assert.ok(up.body.url.startsWith(`/api/${project}/uploads/`));
+  assert.equal(up.body.storage, 'gridfs', 'defaults to GridFS without GCS_BUCKET');
+  // The URL uses an unguessable 128-bit token.
+  const ref = up.body.url.split('/').pop();
+  assert.match(ref, /^[a-f0-9]{32}$/, 'url ref is a random token');
 
   // Serve it back with the right content type.
   const get = await request(app).get(up.body.url);
@@ -377,6 +469,143 @@ test('image upload stores to GridFS and serves it back; rejects non-images', asy
   assert.equal(cross.status, 404);
 });
 
+test('share links expose read-only project and page views publicly', async () => {
+  const project = await makeProject('shared');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'Public Epic' });
+  await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'Public Feature' });
+  const page = await request(app).post(`/api/${project}/pages`).send({ title: 'Public Doc', body: '# Hi' });
+
+  // Project share -> public tree.
+  const projShare = await request(app).post(`/api/${project}/shares`).send({ scope: 'project' });
+  assert.equal(projShare.status, 201);
+  assert.ok(projShare.body.path.startsWith('/s/'));
+
+  const pubProject = await request(app).get(`/api/public/${projShare.body.token}`);
+  assert.equal(pubProject.status, 200);
+  assert.equal(pubProject.body.scope, 'project');
+  assert.equal(pubProject.body.data[0].title, 'Public Epic');
+  assert.equal(pubProject.body.data[0].features[0].title, 'Public Feature');
+
+  // Page share -> public single page.
+  const pageShare = await request(app)
+    .post(`/api/${project}/shares`)
+    .send({ scope: 'page', pageId: page.body.data._id });
+  assert.equal(pageShare.status, 201);
+  const pubPage = await request(app).get(`/api/public/${pageShare.body.token}`);
+  assert.equal(pubPage.body.scope, 'page');
+  assert.equal(pubPage.body.data.title, 'Public Doc');
+  assert.equal(pubPage.body.data.body, '# Hi');
+
+  // A page share requires a valid pageId.
+  const badPage = await request(app).post(`/api/${project}/shares`).send({ scope: 'page' });
+  assert.equal(badPage.status, 400);
+
+  // Unknown token -> 404.
+  const missing = await request(app).get('/api/public/deadbeef');
+  assert.equal(missing.status, 404);
+
+  // Revoke kills public access.
+  const list = await request(app).get(`/api/${project}/shares`);
+  assert.equal(list.body.data.length, 2);
+  const revoke = await request(app).delete(`/api/${project}/shares/${projShare.body.token}`);
+  assert.equal(revoke.status, 200);
+  const afterRevoke = await request(app).get(`/api/public/${projShare.body.token}`);
+  assert.equal(afterRevoke.status, 404);
+});
+
+test('share links can expire; expired links are rejected and removed', async () => {
+  const project = await makeProject('expiry');
+  await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+
+  // Create with a TTL; the response echoes an expires_at.
+  const share = await request(app).post(`/api/${project}/shares`).send({ scope: 'project', expiresInDays: 7 });
+  assert.equal(share.status, 201);
+  assert.ok(share.body.expires_at, 'expiry is set');
+
+  // Still valid right now.
+  const ok = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(ok.status, 200);
+
+  // Backdate the expiry to simulate the link aging out.
+  await getDB().collection('shares').updateOne(
+    { token: share.body.token },
+    { $set: { expires_at: new Date(Date.now() - 1000) } }
+  );
+
+  const expired = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(expired.status, 410, 'expired link is gone');
+
+  // And it was cleaned up (a second read is a plain 404).
+  const gone = await request(app).get(`/api/public/${share.body.token}`);
+  assert.equal(gone.status, 404);
+});
+
+test('comments: add, list with parsed mentions, and delete on a task', async () => {
+  const project = await makeProject('comments');
+  const epic = await request(app).post(`/api/${project}/epics`).send({ title: 'E' });
+  const feature = await request(app)
+    .post(`/api/${project}/features/by-epic/${epic.body.data._id}`)
+    .send({ title: 'F' });
+  const task = await request(app)
+    .post(`/api/${project}/tasks/by-feature/${feature.body.data._id}`)
+    .send({ title: 'T' });
+  const taskId = task.body.data._id;
+
+  // Empty to start; target/type are required.
+  const bad = await request(app).get(`/api/${project}/comments`);
+  assert.equal(bad.status, 400);
+
+  const add = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: taskId, body: 'Nice work @alice and @bob' });
+  assert.equal(add.status, 201);
+  assert.deepEqual(add.body.data.mentions, ['alice', 'bob'], 'mentions parsed');
+
+  const list = await request(app).get(`/api/${project}/comments?target_type=task&target_id=${taskId}`);
+  assert.equal(list.body.data.length, 1);
+  assert.equal(list.body.data[0].body, 'Nice work @alice and @bob');
+
+  // Commenting on a missing target 404s; empty body 400s.
+  const missing = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: '0'.repeat(24), body: 'hi' });
+  assert.equal(missing.status, 404);
+  const empty = await request(app)
+    .post(`/api/${project}/comments`)
+    .send({ target_type: 'task', target_id: taskId, body: '   ' });
+  assert.equal(empty.status, 400);
+
+  const del = await request(app).delete(`/api/${project}/comments/${add.body.data._id}`);
+  assert.equal(del.status, 200);
+  const after = await request(app).get(`/api/${project}/comments?target_type=task&target_id=${taskId}`);
+  assert.equal(after.body.data.length, 0);
+
+  // Comments never leak into the item tree or export.
+  const tree = await request(app).get(`/api/${project}/tree`);
+  assert.equal(tree.body.data[0].features[0].tasks.length, 1, 'only the task, no comment docs');
+});
+
+test('telegram /start <code> auto-links the chat id to the account', async () => {
+  const { handleUpdate } = await import('../../src/utils/telegram.js');
+  const db = getDB();
+  await db.collection('users').insertOne({ username: 'zoe', email: 'z@e.com' });
+  await db.collection('telegram_links').insertOne({ code: 'abc123', username: 'zoe', created_at: new Date() });
+
+  await handleUpdate({ message: { chat: { id: 55501 }, text: '/start abc123' } });
+
+  const user = await db.collection('users').findOne({ username: 'zoe' });
+  assert.equal(user.telegram_chat_id, '55501', 'chat id captured automatically');
+  const link = await db.collection('telegram_links').findOne({ code: 'abc123' });
+  assert.equal(link, null, 'the one-time code is consumed');
+
+  // An unknown code links nothing and does not throw.
+  await handleUpdate({ message: { chat: { id: 999 }, text: '/start nope' } });
+  const zoe = await db.collection('users').findOne({ username: 'zoe' });
+  assert.equal(zoe.telegram_chat_id, '55501', 'unchanged by an invalid code');
+});
+
 test('deleting an epic cascades to its features and tasks', async () => {
   const project = await makeProject();
 
@@ -395,7 +624,10 @@ test('deleting an epic cascades to its features and tasks', async () => {
   const tree = await request(app).get(`/api/${project}/tree`);
   assert.equal(tree.body.data.length, 0, 'no epics remain');
 
-  // The whole project collection should be empty of documents now.
-  const remaining = await getDB().collection(`project_${project}`).countDocuments();
-  assert.equal(remaining, 0, 'features and tasks should be gone too');
+  // Soft-delete: docs still exist but none are live (all trashed together).
+  const coll = getDB().collection(`project_${project}`);
+  const live = await coll.countDocuments({ deleted_at: null });
+  assert.equal(live, 0, 'features and tasks should all be trashed too');
+  const trashed = await coll.countDocuments({ deleted_at: { $ne: null } });
+  assert.equal(trashed, 3, 'epic + feature + task sit in trash');
 });

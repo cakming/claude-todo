@@ -395,6 +395,59 @@ Delete a task.
 
 ---
 
+## Comments & Notifications
+
+### GET /api/:project/comments?target_type=&target_id=
+
+List comments on an epic/feature/task (oldest first).
+
+### POST /api/:project/comments
+
+Add a comment. Body: `{ target_type, target_id, body }`. `@mentions` in the
+body are parsed; mentioned users are notified (email always; Telegram if
+configured). Author comes from the authenticated user.
+
+### DELETE /api/:project/comments/:id
+
+Delete a comment.
+
+### Telegram linking (requires auth)
+
+One-click flow — the server's bot poller captures the chat id automatically:
+
+- `POST /api/auth/telegram/connect` → `{ code, url }`. Open `url` (a
+  `t.me/<bot>?start=<code>` deep link) and press Start.
+- `GET /api/auth/telegram/status` → `{ linked, configured }`.
+- `POST /api/auth/telegram/disconnect` → unlink.
+
+Telegram delivery needs `TELEGRAM_BOT_TOKEN` set on the server; email
+notifications work with SMTP configured (see `.env.example`).
+
+---
+
+## Trash (soft-delete)
+
+Deleting an epic, feature, task, or page **soft-deletes** it: the item (and its
+cascaded children) are flagged and hidden from all reads, but retained under a
+shared `batch` id so they can be restored or purged. Every delete response
+includes that `batch`.
+
+### GET /api/:project/trash
+
+List trashed items grouped by delete batch (newest first). Each entry:
+`{ batch, deleted_at, count, label, type }`.
+
+### POST /api/:project/trash/restore
+
+Restore a batch (the undo). Body: `{ "batch": "..." }`. Recomputes affected
+parent statuses.
+
+### DELETE /api/:project/trash/:batch
+
+Permanently delete a batch. Use `:batch = all` to empty the whole trash.
+
+---
+
 ## Docs (Pages)
 
 Free-form markdown notes attached to a project, separate from the

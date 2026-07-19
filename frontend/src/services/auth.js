@@ -115,6 +115,44 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 /**
+ * Start Telegram linking — returns a deep link the user opens to press Start.
+ */
+export async function telegramConnect() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/connect`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to start Telegram linking');
+  return data;
+}
+
+/**
+ * Check whether the current user has Telegram linked.
+ */
+export async function telegramStatus() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/status`, {
+    headers: getAuthHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to check Telegram status');
+  return data;
+}
+
+/**
+ * Unlink Telegram for the current user.
+ */
+export async function telegramDisconnect() {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram/disconnect`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to unlink Telegram');
+  return data;
+}
+
+/**
  * Request a password reset email
  */
 export async function forgotPassword(email) {

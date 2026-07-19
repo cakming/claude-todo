@@ -20,7 +20,11 @@ import { DOC_TYPES } from '../src/models/schemas.js';
  */
 function makeCollection(docs) {
   const matches = (doc, query) =>
-    Object.entries(query).every(([key, value]) => String(doc[key]) === String(value));
+    Object.entries(query).every(([key, value]) => {
+      // Mongo semantics: { field: null } matches null or missing.
+      if (value === null) return doc[key] === null || doc[key] === undefined;
+      return String(doc[key]) === String(value);
+    });
 
   return {
     docs,

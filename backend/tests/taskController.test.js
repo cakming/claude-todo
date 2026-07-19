@@ -80,13 +80,15 @@ test('updateTask on a missing task returns 404', async () => {
   assert.equal(res.statusCode, 404);
 });
 
-test('deleteTask removes the task and returns success', async () => {
+test('deleteTask soft-deletes the task and returns a batch for undo', async () => {
   const res = makeRes();
   await deleteTask(req({ project: 'demo', id: T1 }), res);
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
-  assert.ok(!collection.docs.some((d) => d._id === T1), 'task should be deleted');
+  assert.ok(res.body.batch, 'returns a batch id');
+  const task = collection.docs.find((d) => d._id === T1);
+  assert.ok(task && task.deleted_at, 'task is trashed, not hard-deleted');
 });
 
 test('deleteTask on a missing task returns 404', async () => {

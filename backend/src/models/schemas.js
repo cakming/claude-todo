@@ -13,8 +13,12 @@ export const DOC_TYPES = {
   EPIC: 'epic',
   FEATURE: 'feature',
   TASK: 'task',
-  PAGE: 'page'
+  PAGE: 'page',
+  COMMENT: 'comment'
 };
+
+// What a comment can be attached to.
+export const COMMENT_TARGETS = ['epic', 'feature', 'task'];
 
 /**
  * Validate Epic document
@@ -115,6 +119,55 @@ export function createPageDoc(data) {
     body: typeof data.body === 'string' ? data.body : '',
     created_at: new Date(),
     updated_at: new Date()
+  };
+}
+
+/**
+ * Extract unique @mentions from comment text.
+ */
+export function parseMentions(body) {
+  const found = new Set();
+  const re = /@([a-zA-Z0-9_.-]+)/g;
+  let m;
+  while ((m = re.exec(body || '')) !== null) found.add(m[1]);
+  return [...found];
+}
+
+/**
+ * Validate a comment.
+ */
+export function validateComment(data) {
+  const errors = [];
+  if (!data.body || typeof data.body !== 'string' || data.body.trim().length === 0) {
+    errors.push('body is required and must be a non-empty string');
+  }
+  if (!COMMENT_TARGETS.includes(data.target_type)) {
+    errors.push(`target_type must be one of: ${COMMENT_TARGETS.join(', ')}`);
+  }
+  if (!data.target_id) {
+    errors.push('target_id is required');
+  } else {
+    try {
+      new ObjectId(data.target_id);
+    } catch (e) {
+      errors.push('target_id must be a valid ObjectId');
+    }
+  }
+  return errors;
+}
+
+/**
+ * Create a comment document.
+ */
+export function createCommentDoc(data, author) {
+  return {
+    type: DOC_TYPES.COMMENT,
+    target_type: data.target_type,
+    target_id: new ObjectId(data.target_id),
+    body: data.body.trim(),
+    author: author || 'anonymous',
+    mentions: parseMentions(data.body),
+    created_at: new Date()
   };
 }
 

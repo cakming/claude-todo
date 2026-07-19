@@ -4,6 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { exchangeApi } from '../../services/api';
 import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
+import ShareModal from '../Common/ShareModal';
+import ProjectsModal from '../Common/ProjectsModal';
+import NotificationsModal from '../Common/NotificationsModal';
 import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
@@ -14,6 +17,9 @@ export default function Header() {
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(isDark());
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
   const fileRef = useRef(null);
 
   const handleExport = async () => {
@@ -109,6 +115,15 @@ export default function Header() {
                 + New Project
               </button>
 
+              <button
+                onClick={() => setShowProjectsModal(true)}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                title="Manage projects (delete / restore)"
+                aria-label="Manage projects"
+              >
+                ⚙︎
+              </button>
+
               {currentProject && (
                 <>
                   <button
@@ -124,6 +139,13 @@ export default function Header() {
                     title="Import project from JSON (replaces current contents)"
                   >
                     Import
+                  </button>
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Manage public read-only links to this project"
+                  >
+                    Share
                   </button>
                   <input
                     ref={fileRef}
@@ -146,6 +168,12 @@ export default function Header() {
                     <span className="ml-1 text-xs text-gray-500">({user.role})</span>
                   )}
                 </div>
+                <button
+                  onClick={() => setShowNotifModal(true)}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Notifications
+                </button>
                 <button
                   onClick={() => setShowPasswordModal(true)}
                   className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
@@ -212,6 +240,21 @@ export default function Header() {
       <ChangePasswordModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
+      />
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
+
+      <ProjectsModal
+        isOpen={showProjectsModal}
+        onClose={() => setShowProjectsModal(false)}
+      />
+
+      <NotificationsModal
+        isOpen={showNotifModal}
+        onClose={() => setShowNotifModal(false)}
       />
     </>
   );

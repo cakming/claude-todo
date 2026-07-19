@@ -64,6 +64,45 @@ test('undo restores a deleted epic and its children', async ({ page }) => {
   await expect(page.getByText('Undoable Feature')).toBeVisible();
 });
 
+test('project trash: move a project to trash and restore it', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  const { sanitized } = await createProject(page);
+  await createEpic(page, 'Keeper Epic');
+
+  await page.getByRole('button', { name: 'Manage projects' }).click();
+  await expect(page.getByRole('heading', { name: 'Manage projects' })).toBeVisible();
+  await page.getByRole('button', { name: 'Move to trash' }).click();
+
+  // A trashed-project row appears with a Restore action; restoring empties it.
+  await expect(page.getByRole('button', { name: 'Restore' })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByText('No trashed projects.')).toBeVisible();
+});
+
+test('trash: a deleted epic can be restored from the Trash view', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Trashable Epic');
+
+  await cardMenuAction(page, 'Trashable Epic', 'Delete');
+  await expect(page.getByRole('heading', { name: 'No Epics Yet' })).toBeVisible();
+
+  // The deleted epic sits in the persistent Trash view.
+  await page.getByRole('button', { name: '🗑 Trash' }).click();
+  await expect(page.getByText('📊 Trashable Epic')).toBeVisible();
+
+  // Restoring empties the trash and brings the epic back.
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByRole('heading', { name: 'Trash is empty' })).toBeVisible();
+
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await expect(page.getByRole('heading', { name: /Trashable Epic/ })).toBeVisible();
+});
+
 test('search filters the epic list', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
@@ -147,7 +186,7 @@ test('bulk-selecting tasks and marking them done moves them together', async ({ 
   await expect(page.getByText('To Do (0)')).toBeVisible();
 });
 
-test('docs: create a page, upload an image, and preview markdown', async ({ page }) => {
+test('docs: create a page in the block editor and upload an image', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
 
@@ -156,28 +195,107 @@ test('docs: create a page, upload an image, and preview markdown', async ({ page
 
   await page.getByRole('button', { name: '+ New Page' }).click();
   await page.getByLabel('Page title').fill('My First Doc');
-  await page.getByLabel('Page body').fill('# Hello\n\nSome **bold** text.');
 
-  // Upload a 1x1 PNG through the hidden file input.
+  // Type into the block editor; "# " is an input rule that makes an H1.
+  const editor = page.locator('.ProseMirror');
+  await editor.click();
+  await page.keyboard.type('# Hello');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Some text.');
+  await expect(editor.locator('h1')).toHaveText('Hello');
+
+  // Upload a 1x1 PNG via the toolbar's image button (hidden file input).
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     'base64'
   );
   await page.locator('input[accept="image/*"]').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
   await expect(page.getByText('Image uploaded')).toBeVisible();
+  const img = editor.locator('img');
+  await expect(img).toHaveAttribute('src', /\/uploads\//);
+  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
 
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Page saved')).toBeVisible();
-
-  // The saved page appears in the list.
   await expect(page.getByRole('button', { name: /My First Doc/ })).toBeVisible();
 
-  // Preview renders the markdown heading and the uploaded image actually loads.
-  await page.getByRole('button', { name: 'Preview' }).click();
-  await expect(page.locator('.markdown-body h1')).toHaveText('Hello');
-  const img = page.locator('.markdown-body img');
-  await expect(img).toHaveAttribute('src', /\/uploads\//);
-  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBeGreaterThan(0);
+  // Reopening the saved page restores its formatted content.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: /My First Doc/ }).click();
+  await expect(page.locator('.ProseMirror h1')).toHaveText('Hello');
+});
+
+test('share management: create a link, use it, then revoke it', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Shared Epic');
+  await createFeature(page, 'Shared Epic', 'Shared Feature');
+
+  // Create a link from the Share management modal.
+  await page.getByRole('button', { name: 'Share' }).click();
+  await expect(page.getByRole('heading', { name: 'Share links' })).toBeVisible();
+  await page.getByRole('button', { name: 'Create link' }).click();
+
+  const linkText = await page.getByText(/\/s\/[a-f0-9]{32}/).first().textContent();
+  const url = linkText.match(/https?:\/\/\S+/)[0];
+
+  // The public link renders a standalone read-only view (no app chrome).
+  await page.goto(url);
+  await expect(page.getByText('Read-only · shared')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Shared Epic/ })).toBeVisible();
+  await expect(page.getByText('✨ Shared Feature')).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Add Epic' })).toHaveCount(0);
+
+  // Revoke it from the modal; the link then stops working.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Revoke' }).click();
+  await expect(page.getByText(/\/s\/[a-f0-9]{32}/)).toHaveCount(0);
+
+  await page.goto(url);
+  await expect(page.getByRole('heading', { name: 'Link unavailable' })).toBeVisible();
+});
+
+test('comments: add a comment with a mention to a task', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Comment Epic');
+  await createFeature(page, 'Comment Epic', 'Comment Feature');
+  await createTask(page, 'Comment Epic / Comment Feature', 'Comment Task');
+
+  // Open the task card's Comments thread.
+  const card = page.locator('.card', { hasText: 'Comment Task' });
+  await card.getByRole('button', { name: /Actions for Comment Task/ }).click();
+  await card.getByRole('button', { name: 'Comments' }).click();
+
+  await expect(page.getByRole('heading', { name: /Comments — Comment Task/ })).toBeVisible();
+  await expect(page.getByText('No comments yet. Start the thread.')).toBeVisible();
+
+  await page.getByLabel('New comment').fill('Looks good @alice');
+  await page.getByRole('button', { name: 'Comment', exact: true }).click();
+
+  // The comment appears; the @mention is highlighted as its own span.
+  await expect(page.getByText('Looks good', { exact: false })).toBeVisible();
+  await expect(page.locator('span.text-blue-600', { hasText: '@alice' })).toBeVisible();
+});
+
+test('drill down: epic card opens its features, feature card opens its tasks', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Drill Epic');
+  await createFeature(page, 'Drill Epic', 'Drill Feature');
+  await createTask(page, 'Drill Epic / Drill Feature', 'Drill Task');
+
+  // Click the epic card body -> Features view scoped to that epic.
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await page.locator('.card', { hasText: 'Drill Epic' }).click();
+  await expect(page.getByRole('heading', { name: 'Features' })).toBeVisible();
+  await expect(page.getByText('Drill Feature')).toBeVisible();
+
+  // Click the feature card body -> Tasks view scoped to that feature.
+  await page.locator('.card', { hasText: 'Drill Feature' }).click();
+  await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible();
+  await expect(page.locator('.card', { hasText: 'Drill Task' })).toBeVisible();
 });
 
 test('activity feed lists recent changes', async ({ page }) => {

@@ -3,14 +3,14 @@ import { getProjectCollection } from '../config/mongodb.js';
 import { DOC_TYPES } from '../models/schemas.js';
 import { emitProjectUpdate } from '../realtime.js';
 
-const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK];
+const ITEM_TYPES = [DOC_TYPES.EPIC, DOC_TYPES.FEATURE, DOC_TYPES.TASK, DOC_TYPES.PAGE];
 
 /** Export a project's epics, features, and tasks as JSON. */
 export async function exportProject(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-    const data = await collection.find({ type: { $in: ITEM_TYPES } }).toArray();
+    const data = await collection.find({ type: { $in: ITEM_TYPES }, deleted_at: null }).toArray();
     res.json({ success: true, project, exportedAt: new Date(), data });
   } catch (error) {
     console.error('Export error:', error);

@@ -11,7 +11,7 @@ export async function getPages(req, res) {
   try {
     const { project } = req.params;
     const collection = getProjectCollection(project);
-    const query = applyListFilters({ type: DOC_TYPES.PAGE }, req.query);
+    const query = applyListFilters({ type: DOC_TYPES.PAGE, deleted_at: null }, req.query);
     const pages = await collection.find(query).sort({ updated_at: -1 }).toArray();
     res.json({ success: true, data: pages });
   } catch (error) {
@@ -27,7 +27,7 @@ export async function getPageById(req, res) {
   try {
     const { project, id } = req.params;
     const collection = getProjectCollection(project);
-    const page = await collection.findOne({ _id: new ObjectId(id), type: DOC_TYPES.PAGE });
+    const page = await collection.findOne({ _id: new ObjectId(id), type: DOC_TYPES.PAGE, deleted_at: null });
     if (!page) {
       return res.status(404).json({ success: false, error: 'Page not found' });
     }
@@ -108,16 +108,20 @@ export async function deletePage(req, res) {
     const { project, id } = req.params;
     const collection = getProjectCollection(project);
 
-    const page = await collection.findOne({ _id: new ObjectId(id), type: DOC_TYPES.PAGE });
+    const page = await collection.findOne({ _id: new ObjectId(id), type: DOC_TYPES.PAGE, deleted_at: null });
     if (!page) {
       return res.status(404).json({ success: false, error: 'Page not found' });
     }
 
-    await collection.deleteOne({ _id: new ObjectId(id), type: DOC_TYPES.PAGE });
+    const batch = new ObjectId();
+    await collection.updateOne(
+      { _id: new ObjectId(id), type: DOC_TYPES.PAGE },
+      { $set: { deleted_at: new Date(), deleted_batch: batch } }
+    );
     await logActivity(project, { action: 'deleted', item_type: 'page', title: page.title });
 
-    // Return the removed doc so the client can offer an undo (restore).
-    res.json({ success: true, message: 'Page deleted successfully', removed: [page] });
+    // Return the batch id so the client can offer an undo (restore from trash).
+    res.json({ success: true, message: 'Page deleted successfully', batch });
   } catch (error) {
     console.error('Error deleting page:', error);
     res.status(500).json({ success: false, error: 'Failed to delete page' });

@@ -20,7 +20,22 @@ export function makeCollection(initialDocs = []) {
     if (cond && typeof cond === 'object' && '$in' in cond) {
       return cond.$in.some((x) => String(x) === String(docVal));
     }
+    if (cond && typeof cond === 'object' && '$ne' in cond) {
+      // { field: { $ne: null } } matches only present, non-null values.
+      if (cond.$ne === null) return docVal !== null && docVal !== undefined;
+      return String(docVal) !== String(cond.$ne);
+    }
+    // Mongo semantics: { field: null } matches both null and missing fields.
+    if (cond === null) {
+      return docVal === null || docVal === undefined;
+    }
     return String(docVal) === String(cond);
+  };
+
+  // Apply a Mongo-style update ($set / $unset) to a doc in place.
+  const applyUpdate = (doc, update) => {
+    if (update.$set) Object.assign(doc, update.$set);
+    if (update.$unset) for (const key of Object.keys(update.$unset)) delete doc[key];
   };
   const matches = (doc, query) =>
     Object.entries(query).every(([key, cond]) => valueMatches(doc[key], cond));
@@ -73,15 +88,35 @@ export function makeCollection(initialDocs = []) {
       docs.splice(idx, 1);
       return { deletedCount: 1 };
     },
-    async updateOne(query, update) {
+    async updateOne(query, update, options = {}) {
       const doc = docs.find((d) => matches(d, query));
-      if (doc && update.$set) Object.assign(doc, update.$set);
-      return { matchedCount: doc ? 1 : 0, modifiedCount: doc ? 1 : 0 };
+      if (doc) {
+        applyUpdate(doc, update);
+        return { matchedCount: 1, modifiedCount: 1 };
+      }
+      if (options.upsert) {
+        // Seed the new doc from the query's equality fields, then apply $set.
+        const seed = {};
+        for (const [k, v] of Object.entries(query)) {
+          if (v === null || typeof v !== 'object') seed[k] = v;
+        }
+        const _id = genId();
+        const created = { _id, ...seed };
+        applyUpdate(created, update);
+        docs.push(created);
+        return { matchedCount: 0, modifiedCount: 0, upsertedId: _id };
+      }
+      return { matchedCount: 0, modifiedCount: 0 };
+    },
+    async updateMany(query, update) {
+      const targets = docs.filter((d) => matches(d, query));
+      targets.forEach((doc) => applyUpdate(doc, update));
+      return { matchedCount: targets.length, modifiedCount: targets.length };
     },
     async findOneAndUpdate(query, update, options = {}) {
       const doc = docs.find((d) => matches(d, query));
       if (!doc) return null;
-      if (update.$set) Object.assign(doc, update.$set);
+      applyUpdate(doc, update);
       return options.returnDocument === 'after' ? doc : { ...doc };
     },
     // No-op: index creation is a side effect the controllers call but tests ignore.

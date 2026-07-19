@@ -64,7 +64,7 @@ function DraggableTask({ id, label, children }) {
   );
 }
 
-export default function TaskView() {
+export default function TaskView({ drillFilter }) {
   const { currentProject, showToast, refreshTick } = useApp();
   const [tasks, setTasks] = useState([]);
   const [features, setFeatures] = useState([]);
@@ -102,7 +102,7 @@ export default function TaskView() {
     try {
       const res = await tasksApi.bulkDelete(currentProject, selectedIds);
       showToast(`${selectedIds.length} task(s) deleted`, 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       setSelectedIds([]);
       loadData();
     } catch (e) {
@@ -205,7 +205,7 @@ export default function TaskView() {
     try {
       const res = await tasksApi.delete(currentProject, task._id);
       showToast('Task deleted successfully', 'success',
-        undoDeleteToast({ project: currentProject, removed: res.removed, showToast, reload: loadData }));
+        undoDeleteToast({ project: currentProject, batch: res.batch, showToast, reload: loadData }));
       loadData();
     } catch (error) {
       showToast(error.message, 'error');
@@ -290,7 +290,11 @@ export default function TaskView() {
     );
   }
 
-  const visibleTasks = filterByQuery(tasks, searchQuery);
+  // When drilled in from a Feature card, scope to that feature's tasks.
+  const scopedTasks = drillFilter?.featureId
+    ? tasks.filter((t) => String(t.feature_id) === String(drillFilter.featureId))
+    : tasks;
+  const visibleTasks = filterByQuery(scopedTasks, searchQuery);
   const tasksByStatus = {
     todo: visibleTasks.filter(t => t.status === 'todo'),
     in_progress: visibleTasks.filter(t => t.status === 'in_progress'),

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import StatusBadge from '../Common/StatusBadge';
 import ProgressBar from '../Common/ProgressBar';
+import CommentsModal from '../Common/CommentsModal';
 import { truncate, formatDateTime } from '../../utils/helpers';
 
 export default function EpicCard({ epic, onEdit, onDelete, onExpand }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   return (
     <div className="card hover:shadow-lg transition-shadow relative">
@@ -26,6 +28,15 @@ export default function EpicCard({ epic, onEdit, onDelete, onExpand }) {
               className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
             >
               Edit
+            </button>
+            <button
+              onClick={() => {
+                setShowComments(true);
+                setShowMenu(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+            >
+              Comments
             </button>
             <button
               onClick={() => {
@@ -71,6 +82,14 @@ export default function EpicCard({ epic, onEdit, onDelete, onExpand }) {
           </div>
         </div>
       </div>
+
+      {showComments && (
+        <CommentsModal
+          isOpen
+          onClose={() => setShowComments(false)}
+          target={{ type: 'epic', id: epic._id, title: epic.title }}
+        />
+      )}
     </div>
   );
 }
