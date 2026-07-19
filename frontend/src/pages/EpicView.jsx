@@ -9,13 +9,12 @@ import EmptyState from '../components/Common/EmptyState';
 import { calculateProgress } from '../utils/helpers';
 import { undoDeleteToast } from '../utils/undo';
 
-export default function EpicView() {
+export default function EpicView({ onDrill }) {
   const { currentProject, showToast, refreshTick } = useApp();
   const [epics, setEpics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEpic, setEditingEpic] = useState(null);
-  const [expandedEpic, setExpandedEpic] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const loadIdRef = useRef(0);
@@ -176,7 +175,7 @@ export default function EpicView() {
                   epic={epic}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  onExpand={setExpandedEpic}
+                  onExpand={onDrill}
                 />
               ))}
             </div>

@@ -279,6 +279,25 @@ test('comments: add a comment with a mention to a task', async ({ page }) => {
   await expect(page.locator('span.text-blue-600', { hasText: '@alice' })).toBeVisible();
 });
 
+test('drill down: epic card opens its features, feature card opens its tasks', async ({ page }) => {
+  await page.goto('/');
+  await createProject(page);
+  await createEpic(page, 'Drill Epic');
+  await createFeature(page, 'Drill Epic', 'Drill Feature');
+  await createTask(page, 'Drill Epic / Drill Feature', 'Drill Task');
+
+  // Click the epic card body -> Features view scoped to that epic.
+  await page.getByRole('button', { name: '📊 Epics' }).click();
+  await page.locator('.card', { hasText: 'Drill Epic' }).click();
+  await expect(page.getByRole('heading', { name: 'Features' })).toBeVisible();
+  await expect(page.getByText('Drill Feature')).toBeVisible();
+
+  // Click the feature card body -> Tasks view scoped to that feature.
+  await page.locator('.card', { hasText: 'Drill Feature' }).click();
+  await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible();
+  await expect(page.locator('.card', { hasText: 'Drill Task' })).toBeVisible();
+});
+
 test('activity feed lists recent changes', async ({ page }) => {
   await page.goto('/');
   await createProject(page);
