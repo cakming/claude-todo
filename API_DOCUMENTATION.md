@@ -395,6 +395,30 @@ Delete a task.
 
 ---
 
+## Comments & Notifications
+
+### GET /api/:project/comments?target_type=&target_id=
+
+List comments on an epic/feature/task (oldest first).
+
+### POST /api/:project/comments
+
+Add a comment. Body: `{ target_type, target_id, body }`. `@mentions` in the
+body are parsed; mentioned users are notified (email always; Telegram if
+configured). Author comes from the authenticated user.
+
+### DELETE /api/:project/comments/:id
+
+Delete a comment.
+
+### POST /api/auth/telegram-link
+
+Link/unlink the current user's Telegram chat id. Body: `{ chat_id }` (empty to
+unlink). Requires auth. Telegram delivery also needs `TELEGRAM_BOT_TOKEN` set on
+the server; email notifications work with SMTP configured (see `.env.example`).
+
+---
+
 ## Trash (soft-delete)
 
 Deleting an epic, feature, task, or page **soft-deletes** it: the item (and its

@@ -1,7 +1,27 @@
 import { ObjectId } from 'mongodb';
-import { getProjectCollection } from '../config/mongodb.js';
+import { getDB, getProjectCollection } from '../config/mongodb.js';
 import { validateComment, createCommentDoc, DOC_TYPES, COMMENT_TARGETS } from '../models/schemas.js';
 import { logActivity } from '../utils/activity.js';
+import { notifyUser } from '../utils/notifications.js';
+
+// Notify @mentioned users (best-effort, fire-and-forget). Resolves usernames to
+// registered users and skips the comment's own author.
+export async function notifyMentions(project, comment, targetTitle) {
+  if (!comment.mentions || comment.mentions.length === 0) return;
+  try {
+    const targets = comment.mentions.filter((u) => u !== comment.author);
+    if (targets.length === 0) return;
+    const users = await getDB()
+      .collection('users')
+      .find({ username: { $in: targets } })
+      .toArray();
+    const subject = `You were mentioned on ${comment.target_type} "${targetTitle}"`;
+    const text = `${comment.author} mentioned you in ${project}:\n\n${comment.body}`;
+    await Promise.all(users.map((u) => notifyUser(u, { subject, text })));
+  } catch (e) {
+    // never let notification failure affect the request
+  }
+}
 
 /**
  * List comments for a target item (oldest first).
@@ -61,6 +81,9 @@ export async function createComment(req, res) {
     const doc = createCommentDoc(req.body, req.user?.username);
     const result = await collection.insertOne(doc);
     await logActivity(project, { action: 'commented', item_type: req.body.target_type, title: target.title });
+
+    // Fire-and-forget mention notifications (email / Telegram).
+    notifyMentions(project, doc, target.title);
 
     res.status(201).json({ success: true, data: { _id: result.insertedId, ...doc } });
   } catch (error) {

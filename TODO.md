@@ -29,6 +29,18 @@ Living backlog for the Vibe Coding Todo Manager. Shipped work is summarized in
 
 **All backlog items complete.** ✅
 
+## Follow-ups (done)
+
+- [x] **Mention notifications** — email (nodemailer) + optional Telegram bot,
+  dispatched when a comment @mentions a user. Users link Telegram from a
+  Notifications settings modal.
+
+## Deferred
+
+- [ ] **GCS image storage** — move uploads from GridFS to a Google Cloud Storage
+  bucket with signed URLs (needs a bucket + service-account credentials). Keeps
+  MongoDB lean at image scale.
+
 ## Not planned (notes only)
 
 - Redis caching, PostgreSQL migration — mentioned in `DEPLOYMENT_GCP.md` as

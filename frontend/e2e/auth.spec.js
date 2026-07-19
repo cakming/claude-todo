@@ -52,6 +52,23 @@ test('first user is admin: can see Users view and change password', async ({ pag
   await expect(page.getByRole('heading', { name: 'Change Password' })).toHaveCount(0);
 });
 
+test('a user can link a Telegram chat id for notifications', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Register here' }).click();
+  await page.getByLabel('Username').fill('nina');
+  await page.getByLabel('Email').fill('nina@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('Secret12');
+  await page.getByLabel('Confirm Password').fill('Secret12');
+  await page.getByRole('button', { name: 'Create Account' }).click();
+  await expect(page.getByText('Logged in as')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Notifications' }).click();
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+  await page.getByLabel('Telegram chat id').fill('123456789');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Telegram linked')).toBeVisible();
+});
+
 test('forgot-password shows confirmation and reset opens from a link', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Forgot password?' }).click();

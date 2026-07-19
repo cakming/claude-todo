@@ -6,7 +6,8 @@ import {
   verifyToken,
   changePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  linkTelegram
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 
@@ -60,5 +61,12 @@ router.post('/forgot-password', forgotPassword);
  * @access  Public
  */
 router.post('/reset-password', resetPassword);
+
+/**
+ * @route   POST /api/auth/telegram-link
+ * @desc    Link/unlink the current user's Telegram chat id for notifications
+ * @access  Private (requires authentication)
+ */
+router.post('/telegram-link', authenticate, linkTelegram);
 
 export default router;

@@ -6,6 +6,7 @@ import Modal from '../Common/Modal';
 import ChangePasswordModal from '../Common/ChangePasswordModal';
 import ShareModal from '../Common/ShareModal';
 import ProjectsModal from '../Common/ProjectsModal';
+import NotificationsModal from '../Common/NotificationsModal';
 import { isDark, toggleTheme } from '../../utils/theme';
 
 export default function Header() {
@@ -18,6 +19,7 @@ export default function Header() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
   const fileRef = useRef(null);
 
   const handleExport = async () => {
@@ -167,6 +169,12 @@ export default function Header() {
                   )}
                 </div>
                 <button
+                  onClick={() => setShowNotifModal(true)}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Notifications
+                </button>
+                <button
                   onClick={() => setShowPasswordModal(true)}
                   className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
                 >
@@ -242,6 +250,11 @@ export default function Header() {
       <ProjectsModal
         isOpen={showProjectsModal}
         onClose={() => setShowProjectsModal(false)}
+      />
+
+      <NotificationsModal
+        isOpen={showNotifModal}
+        onClose={() => setShowNotifModal(false)}
       />
     </>
   );

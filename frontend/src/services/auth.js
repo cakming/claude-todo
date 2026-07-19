@@ -115,6 +115,25 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 /**
+ * Link or unlink the current user's Telegram chat id for notifications.
+ */
+export async function linkTelegram(chatId) {
+  const response = await fetch(`${API_BASE_URL}/auth/telegram-link`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ chat_id: chatId })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update Telegram link');
+  }
+  return data;
+}
+
+/**
  * Request a password reset email
  */
 export async function forgotPassword(email) {

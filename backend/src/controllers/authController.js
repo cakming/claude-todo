@@ -372,3 +372,30 @@ export async function verifyToken(req, res) {
     }
   });
 }
+
+/**
+ * Link or unlink the current user's Telegram chat id for notifications.
+ * Body: { chat_id } — pass an empty value to unlink.
+ */
+export async function linkTelegram(req, res) {
+  try {
+    const username = req.user?.username;
+    if (!username) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    const raw = req.body?.chat_id;
+    const value = raw ? String(raw).trim() : null;
+
+    const result = await getUsersCollection().updateOne(
+      { username },
+      { $set: { telegram_chat_id: value } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: value ? 'Telegram linked' : 'Telegram unlinked' });
+  } catch (error) {
+    console.error('Error linking Telegram:', error);
+    res.status(500).json({ success: false, message: 'Failed to update Telegram link' });
+  }
+}
