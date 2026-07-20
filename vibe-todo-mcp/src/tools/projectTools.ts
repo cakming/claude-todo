@@ -49,9 +49,9 @@ export async function getProjectStats(name: string): Promise<{
 }> {
   const collection = getProjectCollection(name);
 
-  const epics = await collection.countDocuments({ type: 'epic' });
-  const features = await collection.countDocuments({ type: 'feature' });
-  const tasks = await collection.countDocuments({ type: 'task' });
+  const epics = await collection.countDocuments({ type: 'epic', deleted_at: null });
+  const features = await collection.countDocuments({ type: 'feature', deleted_at: null });
+  const tasks = await collection.countDocuments({ type: 'task', deleted_at: null });
 
   return {
     epics,

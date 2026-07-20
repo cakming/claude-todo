@@ -1,5 +1,15 @@
 # MongoDB MCP Setup Guide
 
+> **⚠️ Update (2026-07): This documents a legacy/generic MongoDB MCP server.**
+> The steps below install a generic third-party MongoDB MCP
+> (`@modelcontextprotocol/server-mongodb`) that talks to the raw database. The
+> project now ships its **own purpose-built MCP server** in **`vibe-todo-mcp/`**,
+> which exposes **42 domain tools** (projects, epics, features, tasks, tree view,
+> search/filter, docs pages, comments/mentions, trash, and share links) instead
+> of raw DB access. For current setup, follow
+> **`vibe-todo-mcp/SETUP_GUIDE.md`** — not this file. The content below is kept as
+> annotated history.
+
 This guide explains how to set up MongoDB MCP (Model Context Protocol) for Claude Code to interact with the Vibe Todo Manager database.
 
 ## What is MongoDB MCP?
@@ -55,6 +65,11 @@ You should see the MongoDB version printed.
 
 MongoDB MCP servers can be installed via npm. Here are two popular options:
 
+> **Update (2026-07):** No longer the recommended path — this installs a generic
+> third-party MongoDB MCP server, not the project's own. Use the purpose-built
+> **`vibe-todo-mcp/`** server (28 tools) via **`vibe-todo-mcp/SETUP_GUIDE.md`**
+> instead. The generic option below remains only as annotated history.
+
 **Option A: @modelcontextprotocol/server-mongodb**
 ```bash
 npm install -g @modelcontextprotocol/server-mongodb
@@ -108,6 +123,7 @@ NODE_ENV=development
 
 # CORS
 CORS_ORIGIN=http://localhost:3000
+# ⚠️ Update (2026-07): the Vite frontend runs on 5173 → set CORS_ORIGIN=http://localhost:5173
 ```
 
 ### 6. Start the Backend Server

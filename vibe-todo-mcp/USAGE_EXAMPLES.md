@@ -12,6 +12,7 @@ Real-world examples of using the Vibe Todo MCP Server with Claude.
 6. [Daily Standup](#daily-standup)
 7. [Project Review](#project-review)
 8. [Advanced Scenarios](#advanced-scenarios)
+9. [Docs, Comments, Trash & Sharing](#docs-comments-trash--sharing)
 
 ---
 
@@ -584,6 +585,139 @@ Claude: [Uses create_task]
 - Title: Add rate limiting
 - Description: Prevent brute force attacks
 - Status: todo
+```
+
+---
+
+## Docs, Comments, Trash & Sharing
+
+### Writing a Doc Page
+
+**Scenario:** Capturing an architecture note alongside the work
+
+```
+You: "Create a doc page called Architecture Overview in my_first_app with a body describing the auth flow"
+
+Claude: [Uses create_page tool]
+✅ Doc page created!
+
+Page: "Architecture Overview"
+ID: 652f1f77bcf86cd799439021
+
+You: "List the doc pages for my_first_app"
+
+Claude: [Uses list_pages tool]
+📄 Doc Pages (newest updated first):
+1. Architecture Overview (updated just now)
+
+You: "Search my pages for auth"
+
+Claude: [Uses list_pages with search: "auth"]
+🔍 Found 1 page: "Architecture Overview"
+
+You: "Update that page - append the token refresh section"
+
+Claude: [Uses update_page tool]
+✅ Page "Architecture Overview" updated
+```
+
+---
+
+### Commenting with a Mention
+
+**Scenario:** Leaving a review note on a task
+
+```
+You: "Comment on task 507f1f77bcf86cd799439012: token expiry looks off, can @alice take a look?"
+
+Claude: [Uses add_comment tool]
+✅ Comment added to the task
+- Author: mcp
+- Mentions: ["alice"]
+
+Note: @mentions are recorded on the comment, but notifications
+(email/Telegram) are sent from the web app, not the MCP tool.
+
+You: "Show me the comments on that task"
+
+Claude: [Uses list_comments with targetType: "task", targetId: 507f1f77bcf86cd799439012]
+💬 Comments (oldest first):
+1. mcp: "token expiry looks off, can @alice take a look?" (just now)
+
+You: "Delete that comment"
+
+Claude: [Uses delete_comment tool]
+✅ Comment deleted successfully
+```
+
+---
+
+### Trash: Delete, Review & Restore
+
+**Scenario:** Removing a stale page, then getting it back
+
+```
+You: "Delete the old Meeting Notes page in my_first_app"
+
+Claude: [Uses delete_page tool]
+✅ Page moved to trash (soft-delete)
+Batch: b_652f2a1177bcf86cd799439099
+
+It won't show up in your normal listings, but it's recoverable.
+
+You: "What's in the trash?"
+
+Claude: [Uses list_trash tool]
+🗑️ Trash (retention: 30 days):
+Batch b_652f2a1177bcf86cd799439099 (deleted just now)
+  - Page: "Meeting Notes"
+
+You: "Actually, restore that batch"
+
+Claude: [Uses restore_trash tool]
+✅ Batch restored, parent statuses recomputed
+"Meeting Notes" is back in your pages.
+
+You: "On second thought, delete it and empty the trash for good"
+
+Claude: [Uses delete_page, then purge_trash with batch: "all"]
+✅ Trash emptied permanently (not reversible)
+```
+
+---
+
+### Sharing a Read-Only Link
+
+**Scenario:** Sharing project progress and a single spec page
+
+```
+You: "Create a public share link for my_first_app"
+
+Claude: [Uses create_share tool]
+✅ Share link created!
+- Scope: project
+- Path: /s/s_9f3c2a77bcf86cd799439040
+- Expires: never
+
+You: "Share just the Architecture Overview page, and expire it in 7 days"
+
+Claude: [Uses create_share with scope: "page", pageId: 652f1f77bcf86cd799439021, expiresInDays: 7]
+✅ Page share created!
+- Scope: page
+- Path: /s/s_71b0aa77bcf86cd799439041
+- Expires: in 7 days
+
+You: "List all my share links"
+
+Claude: [Uses list_shares tool]
+🔗 Share links for my_first_app:
+1. /s/s_9f3c2a77bcf86cd799439040 (project, no expiry)
+2. /s/s_71b0aa77bcf86cd799439041 (page, expires in 7 days)
+
+You: "Revoke the project-wide one"
+
+Claude: [Uses revoke_share tool]
+✅ Share revoked successfully
 ```
 
 ---

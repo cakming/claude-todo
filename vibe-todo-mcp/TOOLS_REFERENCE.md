@@ -1,6 +1,8 @@
 # MCP Tools Reference
 
-Complete reference for all 30+ tools available in the Vibe Todo MCP Server.
+Complete reference for all 42 tools available in the Vibe Todo MCP Server.
+
+> **Note:** The read tools (`list_*`, `get_*`, `search_items`, tree, and stats tools) exclude soft-deleted (trashed) items, so anything moved to the trash no longer appears in normal listings until it is restored.
 
 ## Table of Contents
 
@@ -10,7 +12,11 @@ Complete reference for all 30+ tools available in the Vibe Todo MCP Server.
 4. [Task Management Tools](#task-management-tools) (8 tools)
 5. [Tree View Tools](#tree-view-tools) (2 tools)
 6. [Search & Filter Tools](#search--filter-tools) (4 tools)
-7. [Quick Reference](#quick-reference)
+7. [Docs / Page Tools](#docs--page-tools) (5 tools)
+8. [Comment Tools](#comment-tools) (3 tools)
+9. [Trash Tools](#trash-tools) (3 tools)
+10. [Share Tools](#share-tools) (3 tools)
+11. [Quick Reference](#quick-reference)
 
 ---
 
@@ -849,6 +855,425 @@ Get recently updated items (sorted by update time).
 
 ---
 
+## Docs / Page Tools
+
+Free-form documentation pages attached to a project (notes, specs, design docs). Body accepts markdown/HTML text.
+
+### 29. `list_pages`
+
+List a project's doc pages, newest updated first. Optionally search over title and body.
+
+**Parameters:**
+- `project` (required): Project name
+- `search` (optional): Text search over title and body
+
+**Returns:** Array of doc page objects (newest updated first)
+
+**Example Usage:**
+```
+"List all doc pages in my_app"
+"Show me the docs for website_redesign"
+"Search my_app pages for onboarding"
+```
+
+**Example Response:**
+```json
+[
+  {
+    "_id": "652f1f77bcf86cd799439021",
+    "type": "page",
+    "title": "Architecture Overview",
+    "body": "# Architecture\n\nThe system is composed of...",
+    "created_at": "2025-01-15T10:00:00.000Z",
+    "updated_at": "2025-01-16T09:00:00.000Z"
+  }
+]
+```
+
+**Perfect for:** Keeping project notes and specs alongside the work
+
+---
+
+### 30. `get_page`
+
+Get a single doc page by id.
+
+**Parameters:**
+- `project` (required): Project name
+- `pageId` (required): Page ObjectId
+
+**Returns:** Doc page object
+
+**Example Usage:**
+```
+"Get page 652f1f77bcf86cd799439021 in my_app"
+"Show me the Architecture Overview page"
+```
+
+**Example Response:**
+```json
+{
+  "_id": "652f1f77bcf86cd799439021",
+  "type": "page",
+  "title": "Architecture Overview",
+  "body": "# Architecture\n\nThe system is composed of...",
+  "created_at": "2025-01-15T10:00:00.000Z",
+  "updated_at": "2025-01-16T09:00:00.000Z"
+}
+```
+
+---
+
+### 31. `create_page`
+
+Create a doc page (free-form note). Body accepts markdown/HTML text.
+
+**Parameters:**
+- `project` (required): Project name
+- `title` (required): Page title
+- `body` (optional): Page body (markdown/HTML text)
+
+**Returns:** Created doc page object
+
+**Example Usage:**
+```
+"Create a doc page called Architecture Overview in my_app"
+"Add a page titled API Design with body describing the endpoints"
+"Make a new note called Meeting Notes 2025-01-16"
+```
+
+**Example Response:**
+```json
+{
+  "_id": "652f1f77bcf86cd799439021",
+  "type": "page",
+  "title": "Architecture Overview",
+  "body": "",
+  "created_at": "2025-01-16T09:00:00.000Z",
+  "updated_at": "2025-01-16T09:00:00.000Z"
+}
+```
+
+---
+
+### 32. `update_page`
+
+Update a doc page's title and/or body.
+
+**Parameters:**
+- `project` (required): Project name
+- `pageId` (required): Page ObjectId
+- `title` (optional): New title
+- `body` (optional): New body
+
+**Returns:** Updated doc page object
+
+**Example Usage:**
+```
+"Update page 652f1f77bcf86cd799439021 with a new body"
+"Rename the Architecture Overview page to System Design"
+"Append the deployment steps to the API Design page"
+```
+
+---
+
+### 33. `delete_page`
+
+Soft-delete a doc page. The page is moved to the trash (restorable via `restore_trash`) rather than being permanently removed.
+
+**Parameters:**
+- `project` (required): Project name
+- `pageId` (required): Page ObjectId
+
+**Returns:** Object with the delete `batch` id (use it with `restore_trash` / `purge_trash`)
+
+**Example Usage:**
+```
+"Delete page 652f1f77bcf86cd799439021 from my_app"
+"Move the old Meeting Notes page to the trash"
+```
+
+**Example Response:**
+```json
+{
+  "batch": "b_652f2a1177bcf86cd799439099"
+}
+```
+
+**🗑️ Soft-delete:** The page goes to the trash and can be restored. See the [Trash Tools](#trash-tools).
+
+---
+
+## Comment Tools
+
+Threaded comments on any epic, feature, or task. `@mentions` in the comment body are parsed and recorded.
+
+### 34. `list_comments`
+
+List comments on an epic, feature, or task (oldest first).
+
+**Parameters:**
+- `project` (required): Project name
+- `targetType` (required): One of: `epic`, `feature`, `task` — the type of item the comments are attached to
+- `targetId` (required): ObjectId of the epic/feature/task
+
+**Returns:** Array of comment objects (oldest first)
+
+**Example Usage:**
+```
+"List comments on task 507f1f77bcf86cd799439012 in my_app"
+"Show me the discussion on the Login Form feature"
+```
+
+**Example Response:**
+```json
+[
+  {
+    "_id": "652f1f77bcf86cd799439031",
+    "target_type": "task",
+    "target_id": "507f1f77bcf86cd799439012",
+    "body": "Can @alice review the token expiry logic?",
+    "author": "mcp",
+    "mentions": ["alice"],
+    "created_at": "2025-01-16T09:00:00.000Z"
+  }
+]
+```
+
+---
+
+### 35. `add_comment`
+
+Add a comment to an epic, feature, or task. `@mentions` in the body are parsed into a `mentions[]` array.
+
+**Parameters:**
+- `project` (required): Project name
+- `targetType` (required): One of: `epic`, `feature`, `task`
+- `targetId` (required): ObjectId of the epic/feature/task
+- `body` (required): Comment text (supports `@username` mentions)
+- `author` (optional): Comment author username (default: `mcp`)
+
+**Returns:** Created comment object (including the parsed `mentions` array)
+
+**Example Usage:**
+```
+"Comment on task 507f1f77bcf86cd799439012: needs a retry, cc @bob"
+"Add a note to the Login Form feature mentioning @alice"
+```
+
+**Example Response:**
+```json
+{
+  "_id": "652f1f77bcf86cd799439031",
+  "target_type": "task",
+  "target_id": "507f1f77bcf86cd799439012",
+  "body": "Needs a retry, cc @bob",
+  "author": "mcp",
+  "mentions": ["bob"],
+  "created_at": "2025-01-16T09:00:00.000Z"
+}
+```
+
+**ℹ️ Note:** This tool records `@mentions` but does **not** send email/Telegram notifications. Those notifications fire from the web app request path, not from the MCP server.
+
+---
+
+### 36. `delete_comment`
+
+Delete a comment by id.
+
+**Parameters:**
+- `project` (required): Project name
+- `commentId` (required): Comment ObjectId
+
+**Returns:** Success message
+
+**Example Usage:**
+```
+"Delete comment 652f1f77bcf86cd799439031 in my_app"
+"Remove that comment"
+```
+
+**Example Response:**
+```
+Comment deleted successfully
+```
+
+---
+
+## Trash Tools
+
+Soft-deleted items (via `delete_page`) are grouped into delete **batches** in the trash. Batches can be restored or purged. Items past the retention window (`TRASH_RETENTION_DAYS`, default 30) are purged lazily whenever the trash is listed.
+
+### 37. `list_trash`
+
+List trashed (soft-deleted) items grouped by delete batch. Also lazily purges items older than the retention window.
+
+**Parameters:**
+- `project` (required): Project name
+
+**Returns:** Object with `retentionDays` and an array of `batches`
+
+**Example Usage:**
+```
+"Show me the trash for my_app"
+"What's in the trash bin?"
+```
+
+**Example Response:**
+```json
+{
+  "retentionDays": 30,
+  "batches": [
+    {
+      "batch": "b_652f2a1177bcf86cd799439099",
+      "deleted_at": "2025-01-16T09:00:00.000Z",
+      "items": [
+        {
+          "_id": "652f1f77bcf86cd799439021",
+          "type": "page",
+          "title": "Old Meeting Notes"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Perfect for:** Reviewing what can be restored before it is auto-purged
+
+---
+
+### 38. `restore_trash`
+
+Restore a whole delete batch from the trash and recompute affected parent statuses.
+
+**Parameters:**
+- `project` (required): Project name
+- `batch` (required): Batch id (from `list_trash` or a `delete_*` response)
+
+**Returns:** Result of the restore operation
+
+**Example Usage:**
+```
+"Restore batch b_652f2a1177bcf86cd799439099 in my_app"
+"Bring back the last thing I deleted"
+```
+
+**🌟 Recompute:** Parent statuses are recomputed after restoring, keeping auto-status accurate.
+
+---
+
+### 39. `purge_trash`
+
+Permanently delete a trashed batch, or the entire trash when `batch` is `"all"`.
+
+**Parameters:**
+- `project` (required): Project name
+- `batch` (required): Batch id to purge, or `"all"` for the entire trash
+
+**Returns:** Result of the purge operation
+
+**Example Usage:**
+```
+"Purge batch b_652f2a1177bcf86cd799439099 in my_app"
+"Empty the trash for my_app"
+```
+
+**⚠️ WARNING:** Purging is permanent and cannot be undone. Use `batch: "all"` to empty the whole trash.
+
+---
+
+## Share Tools
+
+Public, read-only share links. A share can cover a whole project tree or a single doc page, with an optional expiry. Links are served at `/s/<token>`.
+
+### 40. `list_shares`
+
+List public read-only share links for a project.
+
+**Parameters:**
+- `project` (required): Project name
+
+**Returns:** Array of share objects
+
+**Example Usage:**
+```
+"List share links for my_app"
+"What public links exist for my_app?"
+```
+
+**Example Response:**
+```json
+[
+  {
+    "token": "s_9f3c2a77bcf86cd799439040",
+    "scope": "project",
+    "path": "/s/s_9f3c2a77bcf86cd799439040",
+    "expires_at": null,
+    "created_at": "2025-01-16T09:00:00.000Z"
+  }
+]
+```
+
+---
+
+### 41. `create_share`
+
+Create a public read-only share link for a whole project tree or a single doc page.
+
+**Parameters:**
+- `project` (required): Project name
+- `scope` (optional): One of: `project` (default) or `page`
+- `pageId` (optional): Page ObjectId (required when `scope` is `page`)
+- `expiresInDays` (optional): Expiry in days (positive number); omit for no expiry
+
+**Returns:** Object with `token`, `scope`, `path` (`/s/<token>`), and `expires_at`
+
+**Example Usage:**
+```
+"Create a share link for my_app"
+"Share the Architecture Overview page publicly for 7 days"
+"Make a read-only link to the my_app project tree"
+```
+
+**Example Response:**
+```json
+{
+  "token": "s_9f3c2a77bcf86cd799439040",
+  "scope": "project",
+  "path": "/s/s_9f3c2a77bcf86cd799439040",
+  "expires_at": null
+}
+```
+
+**ℹ️ Note:** When `scope` is `page`, `pageId` is required. Provide `expiresInDays` to auto-expire the link.
+
+---
+
+### 42. `revoke_share`
+
+Revoke (delete) a share link by token.
+
+**Parameters:**
+- `project` (required): Project name
+- `token` (required): Share token to revoke
+
+**Returns:** Success message
+
+**Example Usage:**
+```
+"Revoke share s_9f3c2a77bcf86cd799439040 in my_app"
+"Disable the public link for my_app"
+```
+
+**Example Response:**
+```
+Share revoked successfully
+```
+
+---
+
 ## Quick Reference
 
 ### Status Values
@@ -884,6 +1309,10 @@ Copy these from tool responses to use in subsequent operations.
 | Task | 8 | CRUD + quick status helpers |
 | Tree View | 2 | Hierarchical views with progress |
 | Search | 4 | Find items by text, status, recency |
+| Docs / Pages | 5 | Free-form doc pages (soft-delete) |
+| Comments | 3 | Threaded comments with @mentions |
+| Trash | 3 | Restore or purge soft-deleted batches |
+| Shares | 3 | Public read-only links (`/s/<token>`) |
 
 ### Auto-Status Update Flow
 
@@ -903,4 +1332,4 @@ This happens automatically with every task/feature status update!
 
 ---
 
-**Total: 28 MCP Tools** + auto-status logic + progress calculation = 30+ capabilities! 🎯
+**Total: 42 MCP Tools** + auto-status logic + progress calculation + soft-delete trash & public sharing! 🎯

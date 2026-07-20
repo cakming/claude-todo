@@ -22,7 +22,8 @@ export async function updateParentStatus(
   // Get all children
   const children = await collection.find({
     type: childType,
-    [childKey]: parentId
+    [childKey]: parentId,
+    deleted_at: null
   }).toArray();
 
   // If no children, don't auto-update status
@@ -92,7 +93,8 @@ export async function calculateProgress(
 
   const children = await collection.find({
     type: childType,
-    [childKey]: itemId
+    [childKey]: itemId,
+    deleted_at: null
   }).toArray();
 
   const total = children.length;

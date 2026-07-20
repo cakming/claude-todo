@@ -9,7 +9,7 @@ export async function searchItems(
 ): Promise<any[]> {
   const collection = getProjectCollection(project);
 
-  const filter: any = {};
+  const filter: any = { deleted_at: null };
 
   if (type) {
     filter.type = type;
@@ -39,7 +39,7 @@ export async function getItemsByStatus(
 ): Promise<any[]> {
   const collection = getProjectCollection(project);
 
-  const query: any = { status };
+  const query: any = { status, deleted_at: null };
   if (type) {
     query.type = type;
   }
@@ -61,7 +61,7 @@ export async function getRecentlyUpdated(
 ): Promise<any[]> {
   const collection = getProjectCollection(project);
 
-  return await collection.find({})
+  return await collection.find({ deleted_at: null })
     .sort({ updated_at: -1 })
     .limit(limit)
     .toArray();

@@ -10,6 +10,10 @@ Deep dive into the standout features of the Vibe Todo MCP Server.
 4. [Natural Language Integration](#natural-language-integration)
 5. [Cascade Operations](#cascade-operations)
 6. [Smart Search](#smart-search)
+7. [Documentation Pages](#documentation-pages)
+8. [Comments & Mentions](#comments--mentions)
+9. [Trash Bin (Soft-Delete)](#trash-bin-soft-delete)
+10. [Public Share Links](#public-share-links)
 
 ---
 
@@ -487,6 +491,114 @@ Claude: [Uses get_recently_updated]
 
 ---
 
+## Documentation Pages
+
+### Free-Form Docs Alongside Your Work
+
+Beyond the epic/feature/task hierarchy, each project can hold **doc pages** — free-form notes, specs, and design docs. Bodies accept markdown/HTML text.
+
+**Tools:** `list_pages`, `get_page`, `create_page`, `update_page`, `delete_page`
+
+```
+You: "Create a doc page called Architecture Overview in my_app"
+Claude: [Uses create_page] ✅ Page created
+
+You: "List the docs for my_app"
+Claude: [Uses list_pages] Returns pages, newest updated first
+
+You: "Search my pages for onboarding"
+Claude: [Uses list_pages with search: "onboarding"]
+```
+
+### Key Points
+
+1. **Newest first**: `list_pages` returns pages sorted by most recently updated.
+2. **Text search**: The optional `search` argument matches over title and body.
+3. **Safe delete**: `delete_page` is a *soft-delete* — the page goes to the trash and can be restored (see [Trash Bin](#trash-bin-soft-delete)).
+
+---
+
+## Comments & Mentions
+
+### Discussion on Any Item
+
+Attach threaded comments to any epic, feature, or task. `@mentions` in the comment body are automatically parsed into a `mentions[]` array.
+
+**Tools:** `list_comments`, `add_comment`, `delete_comment`
+
+```
+You: "Comment on the Login Form feature: needs a retry, cc @bob"
+Claude: [Uses add_comment] ✅ Comment added (mentions: ["bob"])
+
+You: "Show me the discussion on that feature"
+Claude: [Uses list_comments] Returns comments oldest-first
+```
+
+### Key Points
+
+1. **Target anything**: `targetType` is `epic`, `feature`, or `task`; `targetId` is its ObjectId.
+2. **Mentions parsed, not notified**: `@mentions` are recorded on the comment, but the MCP tool does **not** send email/Telegram notifications — those fire from the web app request path.
+3. **Oldest first**: `list_comments` returns the thread in chronological order.
+
+---
+
+## Trash Bin (Soft-Delete)
+
+### Deletes You Can Undo
+
+Soft-deleted items (currently doc pages via `delete_page`) are moved to a **trash bin** instead of being removed immediately. Deletions are grouped into **batches** so a single action can be restored or purged as a unit.
+
+**Tools:** `list_trash`, `restore_trash`, `purge_trash`
+
+```
+You: "Delete the old Meeting Notes page"
+Claude: [Uses delete_page] ✅ Moved to trash (batch b_…099)
+
+You: "What's in the trash?"
+Claude: [Uses list_trash] Returns retentionDays + batches[]
+
+You: "Restore that batch"
+Claude: [Uses restore_trash] ✅ Restored, parent statuses recomputed
+```
+
+### Key Points
+
+1. **Grouped by batch**: `list_trash` returns `{ retentionDays, batches[] }`.
+2. **Auto-purge**: Listing the trash lazily purges items older than `TRASH_RETENTION_DAYS` (default 30).
+3. **Restore recomputes status**: `restore_trash` restores a whole batch and recomputes affected parent statuses.
+4. **Permanent purge**: `purge_trash` deletes a batch permanently, or use `batch: "all"` to empty the whole trash (not reversible).
+5. **Clean listings**: The normal read tools (`list_*`, `get_*`, `search_items`, tree, stats) exclude trashed items, so nothing in the trash clutters your views until it is restored.
+
+---
+
+## Public Share Links
+
+### Read-Only Links to Share Your Work
+
+Generate public, read-only links to a whole project tree or a single doc page. Links are served at `/s/<token>` and can optionally expire.
+
+**Tools:** `list_shares`, `create_share`, `revoke_share`
+
+```
+You: "Create a share link for my_app"
+Claude: [Uses create_share] ✅ /s/s_…040 (scope: project)
+
+You: "Share the Architecture Overview page for 7 days"
+Claude: [Uses create_share with scope: "page", pageId, expiresInDays: 7]
+
+You: "Revoke that link"
+Claude: [Uses revoke_share] ✅ Share revoked
+```
+
+### Key Points
+
+1. **Scope**: `create_share` defaults to `scope: "project"`; use `scope: "page"` (with `pageId`) to share a single doc page.
+2. **Optional expiry**: Pass `expiresInDays` for a link that auto-expires; omit it for no expiry.
+3. **Returns a path**: The response includes `token`, `scope`, `path` (`/s/<token>`), and `expires_at`.
+4. **Read-only**: Shared links expose a read-only view; revoke any time with `revoke_share`.
+
+---
+
 ## Summary
 
 ### Key Differentiators
@@ -499,6 +611,10 @@ Claude: [Uses get_recently_updated]
 | Natural Language | Conversational interface | High |
 | Cascade Operations | Clean deletion | Medium |
 | Smart Search | Find anything instantly | High |
+| Documentation Pages | Notes & specs beside the work | Medium |
+| Comments & Mentions | Discussion with @mentions | Medium |
+| Trash Bin (Soft-Delete) | Undo deletes, auto-purge | Medium |
+| Public Share Links | Read-only sharing at `/s/<token>` | Medium |
 
 ### What Makes This Special
 
